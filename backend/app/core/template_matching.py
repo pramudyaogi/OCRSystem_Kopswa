@@ -58,27 +58,59 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
     extracted = {f: {"value": "", "confidence": 0.0} for f in all_ktp_keys}
     
     import re
-    
+    from rapidfuzz import fuzz
+
     # Kata kunci yang tergolong Label KTP (bukan nilai data)
     ALL_LABELS = [
-        "PROVINSI", "KABUPATEN", "KOTA", "NIK", "NAMA", "TEMPAT", "TGL", "LAHIR", 
-        "JENIS", "KELAMIN", "GOL", "DARAH", "ALAMAT", "RT/RW", "RT/", "/RW", 
-        "KEL/DESA", "KELURAHAN", "KECAMATAN", "AGAMA", "STATUS", "PERKAWINAN", 
+        "PROVINSI", "KABUPATEN", "KOTA", "NIK", "NAMA", "TEMPAT", "TGL", "LAHIR",
+        "JENIS", "KELAMIN", "GOL", "DARAH", "ALAMAT", "RT/RW", "RT/", "/RW",
+        "KEL/DESA", "KELURAHAN", "KECAMATAN", "AGAMA", "STATUS", "PERKAWINAN",
         "PEKERJAAN", "KEWARGANEGARAAN", "BERLAKU", "HINGGA"
     ]
-                  
+
+    # Label gabungan (multi-kata) yang sering melebur saat OCR salah baca
+    MULTI_WORD_LABELS = [
+        "JENIS KELAMIN", "GOL DARAH", "KEL DESA", "STATUS PERKAWINAN",
+        "BERLAKU HINGGA", "TEMPAT TGL LAHIR", "RT RW", "TEMPAT LAHIR"
+    ]
+
     def is_label_text(text: str) -> bool:
-        txt_u = text.upper()
+        txt_u = text.upper().strip()
+
         # Jika teksnya murni 16 digit angka NIK, itu BUKAN label
         digits = re.sub(r'\D', '', txt_u)
         if len(digits) >= 14:
             return False
-            
-        # Jika teks mengandung nama tempat/daerah khas KTP, itu BUKAN label murni
-        if any(place in txt_u for place in ["JAKARTA", "BARAT", "TIMUR", "SELATAN", "UTARA", "PUSAT", "JAWA", "SUMATERA", "BALI", "SULAWESI", "KALIMANTAN", "BANDUNG", "SURABAYA", "MEDAN", "ADM."]):
+
+        # Jika pendek tapi angka saja (misal RT/RW 008/009), bukan label
+        if re.match(r'^\d{1,3}[/\-]\d{1,3}$', txt_u):
             return False
 
-        return any(lbl in txt_u for lbl in ALL_LABELS)
+        # Jika teks mengandung nama tempat/daerah khas KTP, itu BUKAN label murni
+        if any(place in txt_u for place in [
+            "JAKARTA", "BARAT", "TIMUR", "SELATAN", "UTARA", "PUSAT",
+            "JAWA", "SUMATERA", "BALI", "SULAWESI", "KALIMANTAN",
+            "BANDUNG", "SURABAYA", "MEDAN", "ADM.", "CENGKARENG",
+            "TANGERANG", "BEKASI", "DEPOK", "BOGOR"
+        ]):
+            return False
+
+        # ── EXACT match: label ada persis di dalam teks ──
+        if any(lbl in txt_u for lbl in ALL_LABELS):
+            return True
+
+        # ── FUZZY match: tangkap label yang salah baca OCR ──
+        # Contoh: "JERISKEIAMIN" ≈ "JENIS KELAMIN" (score ~80)
+        # Hanya aktif untuk teks yang panjangnya 4-20 karakter (cukup pendek = kemungkinan label)
+        if 4 <= len(txt_u) <= 22:
+            for lbl in MULTI_WORD_LABELS:
+                if fuzz.partial_ratio(txt_u, lbl) >= 72:
+                    return True
+            for lbl in ALL_LABELS:
+                if len(lbl) >= 5 and fuzz.ratio(txt_u, lbl) >= 75:
+                    return True
+
+        return False
 
     # 1. Ekstrak koordinat tengah (center_x, center_y) untuk tiap blok
     parsed_blocks = []

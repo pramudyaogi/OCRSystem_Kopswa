@@ -192,21 +192,44 @@ def perspective_transform_ktp(image: np.ndarray) -> np.ndarray:
 
 def reduce_glare_and_enhance(image: np.ndarray) -> np.ndarray:
     """
-    Mengurangi efek bayangan/glare dengan Adaptive CLAHE + Soft Sharpening
-    agar teks KTP tetap jelas terbaca oleh OCR.
+    Mengurangi efek bayangan/glare dengan:
+    1. Adaptive CLAHE lebih agresif untuk foto kamera HP
+    2. Unsharp Mask untuk mempertajam karakter teks
+    3. Gamma correction untuk gambar terlalu gelap/terang
+    Agar teks KTP tetap jelas terbaca meski foto agak miring/buram.
     """
     try:
-        # Konversi ke YUV / LAB untuk memproses pencahayaan tanpa merusak warna
+        # Konversi ke LAB untuk memproses pencahayaan tanpa merusak warna
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
-        
-        # Terapkan CLAHE pada channel Luminance (L)
-        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+
+        # CLAHE lebih agresif (clipLimit=3.0) untuk foto kamera HP
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
         cl = clahe.apply(l)
-        
+
         limg = cv2.merge((cl, a, b))
         enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
-        return enhanced
+
+        # Unsharp Mask: pertajam tepi karakter agar OCR baca lebih akurat
+        # Rumus: sharp = original + amount * (original - blur)
+        blur = cv2.GaussianBlur(enhanced, (0, 0), sigmaX=2.0)
+        sharpened = cv2.addWeighted(enhanced, 1.5, blur, -0.5, 0)
+
+        # Gamma correction: normalisasi kecerahan foto terlalu gelap/terang
+        mean_brightness = np.mean(cv2.cvtColor(sharpened, cv2.COLOR_BGR2GRAY))
+        if mean_brightness < 80:    # Foto terlalu gelap -> terangkan
+            gamma = 0.6
+        elif mean_brightness > 200: # Foto terlalu terang/silau -> redam
+            gamma = 1.5
+        else:
+            gamma = 1.0
+
+        if gamma != 1.0:
+            inv_gamma = 1.0 / gamma
+            table = np.array([(i / 255.0) ** inv_gamma * 255 for i in range(256)]).astype(np.uint8)
+            sharpened = cv2.LUT(sharpened, table)
+
+        return sharpened
     except Exception as e:
         print(f"[GLARE REDUCE ERROR]: {e}")
         return image
