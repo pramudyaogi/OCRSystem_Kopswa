@@ -1,20 +1,162 @@
 {
-  "sample_ktp_1.jpg": {
-    "provinsi": "PROVINSI JAWA BARAT",
-    "kota": "KOTA BANDUNG",
-    "nik": "3273010101900001",
-    "nama": "BUDI SANTOSO",
-    "tempat_tgl_lahir": "BANDUNG, 01-01-1990",
-    "jenis_kelamin": "LAKI-LAKI",
-    "gol_darah": "O",
-    "alamat": "JL. MERDEKA NO. 123",
-    "rt_rw": "001/002",
-    "kel_desa": "CITARUM",
-    "kecamatan": "BANDUNG WETAN",
-    "agama": "ISLAM",
-    "status_perkawinan": "KAWIN",
-    "pekerjaan": "KARYAWAN SWASTA",
-    "kewarganegaraan": "WNI",
-    "berlaku_hingga": "SEUMUR HIDUP"
+  "WhatsApp Image 2026-08-27 at 2.32.40 PM (1).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.40 PM.jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.41 PM (1).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.41 PM (2).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.41 PM.jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.42 PM (1).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.42 PM (2).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.42 PM.jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.43 PM (1).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.43 PM (2).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.43 PM.jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.44 PM (1).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.44 PM.jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.45 PM (1).jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.45 PM.jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
+  },
+  "WhatsApp Image 2026-08-27 at 2.32.46 PM.jpeg": {
+    "nik": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "nama": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "tempat_tgl_lahir": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 0, 'needs_review': 1}",
+    "alamat_lengkap": "{'value': 'PROVINSI DKJAKAEA', 'original_ocr_value': 'PROVINSI DKJAKAEA', 'confidence': 0.95, 'is_valid': 1, 'needs_review': 0}",
+    "jenis_kelamin": "{'value': '', 'original_ocr_value': '', 'confidence': 0.0, 'is_valid': 1, 'needs_review': 1}",
+    "agama": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "status_perkawinan": "{'value': '3173010205050013', 'original_ocr_value': '3173010205050013', 'confidence': 0.983, 'is_valid': 1, 'needs_review': 0}",
+    "pekerjaan": "{'value': 'JAKARTA BARAT', 'original_ocr_value': 'JAKARTA BARAT', 'confidence': 0.9944, 'is_valid': 1, 'needs_review': 0}"
   }
 }
