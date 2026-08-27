@@ -6,6 +6,7 @@ from app.config import UPLOAD_DIR
 
 router = APIRouter()
 
+@router.post("")
 @router.post("/")
 async def upload_document(file: UploadFile = File(...)):
     """

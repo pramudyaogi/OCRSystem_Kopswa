@@ -10,6 +10,7 @@ from app.core.postprocessing import postprocess_extracted_data, convert_numpy_ty
 router = APIRouter()
 
 @router.post("/{filename}")
+@router.post("/{filename}/")
 async def extract_document_data(filename: str, template_type: str = "ktp"):
     """
     Endpoint 'Jantung' Sistem. 
