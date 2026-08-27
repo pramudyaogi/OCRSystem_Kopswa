@@ -53,50 +53,53 @@ def upload_file_to_supabase(file_path: str, destination_path: str) -> str:
 
 def insert_document_to_supabase(doc_data: dict) -> dict:
     """
-    Inserts a new document record into Supabase PostgreSQL 'documents' table.
+    Inserts a new document record into Supabase PostgreSQL 'ktp_documents' table.
     """
     if not supabase_client:
         return None
-    try:
-        res = supabase_client.table("documents").insert(doc_data).execute()
-        if res.data and len(res.data) > 0:
-            return res.data[0]
-    except Exception as e:
-        logging.error(f"Error inserting document to Supabase DB: {e}")
+    for tbl in ["ktp_documents", "documents"]:
+        try:
+            res = supabase_client.table(tbl).insert(doc_data).execute()
+            if res.data and len(res.data) > 0:
+                return res.data[0]
+        except Exception as e:
+            logging.error(f"Error inserting document to Supabase DB ({tbl}): {e}")
     return None
 
 
 def fetch_documents_from_supabase(page: int = 1, limit: int = 6) -> dict:
     """
-    Fetches paginated document records from Supabase PostgreSQL 'documents' table.
+    Fetches paginated document records from Supabase PostgreSQL 'ktp_documents' table.
     """
     if not supabase_client:
         return {"items": [], "total": 0, "page": page, "pages": 1}
-    try:
-        offset = (page - 1) * limit
-        res = supabase_client.table("documents").select("*", count="exact").order("created_at", desc=True).range(offset, offset + limit - 1).execute()
-        total = res.count if res.count is not None else (len(res.data) if res.data else 0)
-        pages = (total + limit - 1) // limit if total > 0 else 1
-        return {
-            "items": res.data or [],
-            "total": total,
-            "page": page,
-            "pages": pages
-        }
-    except Exception as e:
-        logging.error(f"Error fetching documents from Supabase DB: {e}")
-        return {"items": [], "total": 0, "page": page, "pages": 1}
+    for tbl in ["ktp_documents", "documents"]:
+        try:
+            offset = (page - 1) * limit
+            res = supabase_client.table(tbl).select("*", count="exact").order("created_at", desc=True).range(offset, offset + limit - 1).execute()
+            total = res.count if res.count is not None else (len(res.data) if res.data else 0)
+            pages = (total + limit - 1) // limit if total > 0 else 1
+            return {
+                "items": res.data or [],
+                "total": total,
+                "page": page,
+                "pages": pages
+            }
+        except Exception as e:
+            logging.error(f"Error fetching documents from Supabase DB ({tbl}): {e}")
+    return {"items": [], "total": 0, "page": page, "pages": 1}
 
 
 def delete_documents_from_supabase(doc_ids: list) -> bool:
     """
-    Deletes documents by ID list from Supabase PostgreSQL 'documents' table.
+    Deletes documents by ID list from Supabase PostgreSQL 'ktp_documents' table.
     """
     if not supabase_client or not doc_ids:
         return False
-    try:
-        supabase_client.table("documents").delete().in_("id", doc_ids).execute()
-        return True
-    except Exception as e:
-        logging.error(f"Error deleting documents from Supabase DB: {e}")
-        return False
+    for tbl in ["ktp_documents", "documents"]:
+        try:
+            supabase_client.table(tbl).delete().in_("id", doc_ids).execute()
+            return True
+        except Exception as e:
+            logging.error(f"Error deleting documents from Supabase DB ({tbl}): {e}")
+    return False

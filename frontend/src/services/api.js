@@ -45,38 +45,47 @@ export const resolveUploadUrl = (filename) => {
  */
 export const fetchSupabaseDocuments = async (page = 1, limit = 6) => {
   const offset = (page - 1) * limit;
-  const url = `${SUPABASE_URL}/rest/v1/documents?select=*&order=created_at.desc&limit=${limit}&offset=${offset}`;
-  const response = await fetch(url, {
-    headers: {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-      'Prefer': 'count=exact'
-    }
-  });
+  const tables = ['ktp_documents', 'documents'];
+  let lastError = null;
 
-  if (!response.ok) {
-    throw new Error(`Supabase DB Error ${response.status}`);
+  for (const tbl of tables) {
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/${tbl}?select=*&order=created_at.desc&limit=${limit}&offset=${offset}`;
+      const response = await fetch(url, {
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'Prefer': 'count=exact'
+        }
+      });
+
+      if (response.ok) {
+        const items = await response.json();
+        const contentRange = response.headers.get('content-range') || '';
+        let total = items.length;
+        if (contentRange && contentRange.includes('/')) {
+          const totalStr = contentRange.split('/')[1];
+          if (totalStr && totalStr !== '*') {
+            total = parseInt(totalStr, 10);
+          }
+        }
+
+        const pages = Math.max(1, Math.ceil(total / limit));
+        return {
+          items: items || [],
+          total,
+          page,
+          pages,
+          has_next: page < pages,
+          has_prev: page > 1
+        };
+      }
+    } catch (err) {
+      lastError = err;
+    }
   }
 
-  const items = await response.json();
-  const contentRange = response.headers.get('content-range') || '';
-  let total = items.length;
-  if (contentRange && contentRange.includes('/')) {
-    const totalStr = contentRange.split('/')[1];
-    if (totalStr && totalStr !== '*') {
-      total = parseInt(totalStr, 10);
-    }
-  }
-
-  const pages = Math.max(1, Math.ceil(total / limit));
-  return {
-    items: items || [],
-    total,
-    page,
-    pages,
-    has_next: page < pages,
-    has_prev: page > 1
-  };
+  throw lastError || new Error("Supabase DB Error");
 };
 
 /**
@@ -85,13 +94,20 @@ export const fetchSupabaseDocuments = async (page = 1, limit = 6) => {
 export const deleteSupabaseDocuments = async (ids = []) => {
   if (!ids || ids.length === 0) return true;
   const idFilter = `in.(${ids.join(',')})`;
-  const url = `${SUPABASE_URL}/rest/v1/documents?id=${idFilter}`;
-  const response = await fetch(url, {
-    method: 'DELETE',
-    headers: {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+  for (const tbl of ['ktp_documents', 'documents']) {
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/${tbl}?id=${idFilter}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      });
+      if (response.ok) return true;
+    } catch (err) {
+      console.warn(`Error deleting from ${tbl}:`, err);
     }
-  });
-  return response.ok;
+  }
+  return false;
 };
