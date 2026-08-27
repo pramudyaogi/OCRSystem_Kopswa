@@ -14,6 +14,19 @@ export const getApiUrl = (path) => {
 };
 
 /**
+ * Wrapper fetch yang otomatis menambahkan header 'Bypass-Tunnel-Reminder'
+ * agar Localtunnel tidak pernah menampilkan halaman peringatan HTML.
+ */
+export const apiFetch = (path, options = {}) => {
+  const url = getApiUrl(path);
+  const headers = {
+    'Bypass-Tunnel-Reminder': 'true',
+    ...(options.headers || {})
+  };
+  return fetch(url, { ...options, headers });
+};
+
+/**
  * Resolves static uploaded file URLs.
  * If filename is already a full URL or data URI, returns it directly.
  * Otherwise returns `${API_BASE_URL}/uploads/${cleanFilename}`.

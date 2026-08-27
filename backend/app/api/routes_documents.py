@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 from app.db.database import get_db, engine, Base
 from app.models.db_models import DocumentRecord
 from app.core.email_service import send_documents_via_email
+from app.core.thumbnail_service import create_thumbnail
 
 Base.metadata.create_all(bind=engine)
 
@@ -66,10 +67,15 @@ def send_documents_email(request: SendEmailRequest, db: Session = Depends(get_db
 def save_document_result(request: DocumentSaveRequest, db: Session = Depends(get_db)):
     """
     Endpoint untuk menyimpan data final ke dalam database SQLite.
+    Juga membuat thumbnail (~300px, quality ~70%) secara otomatis.
     """
     try:
+        # Generate thumbnail untuk foto KTP
+        thumb_path = create_thumbnail(request.filename)
+
         new_doc = DocumentRecord(
             filename=request.filename,
+            thumbnail_path=thumb_path,
             template_type=request.template_type,
             extracted_data=request.extracted_data,
             status="verified"
@@ -82,7 +88,8 @@ def save_document_result(request: DocumentSaveRequest, db: Session = Depends(get
         return {
             "status": "success", 
             "message": "Data berhasil disimpan secara lokal.", 
-            "id": new_doc.id
+            "id": new_doc.id,
+            "thumbnail_path": thumb_path
         }
     except Exception as e:
         db.rollback()
@@ -102,12 +109,47 @@ def delete_multiple_documents(request: BulkDeleteRequest, db: Session = Depends(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/")
-def get_all_documents(db: Session = Depends(get_db)):
+def get_all_documents(
+    page: int = 1, 
+    limit: int = 6, 
+    db: Session = Depends(get_db)
+):
     """
-    Endpoint untuk mengambil seluruh histori data OCR dari Database.
+    Endpoint untuk mengambil seluruh histori data OCR dari Database (mendukung Pagination).
+    - page: Halaman ke-N (default 1)
+    - limit: Jumlah item per halaman (default 6). Jika <= 0 mengembalikan seluruh data.
     """
-    docs = db.query(DocumentRecord).order_by(DocumentRecord.created_at.desc()).all()
-    return docs
+    query = db.query(DocumentRecord).order_by(DocumentRecord.created_at.desc())
+    total = query.count()
+    
+    if limit <= 0:
+        return query.all()
+        
+    offset = (page - 1) * limit
+    docs = query.offset(offset).limit(limit).all()
+    pages = (total + limit - 1) // limit if total > 0 else 1
+    
+    return {
+        "items": [
+            {
+                "id": doc.id,
+                "filename": doc.filename,
+                "thumbnail_path": doc.thumbnail_path,
+                "template_type": doc.template_type,
+                "extracted_data": doc.extracted_data,
+                "status": doc.status,
+                "status_kirim": doc.status_kirim,
+                "created_at": doc.created_at.isoformat() if doc.created_at else None
+            }
+            for doc in docs
+        ],
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": pages,
+        "has_next": page < pages,
+        "has_prev": page > 1
+    }
 
 @router.put("/{doc_id}")
 def update_document(doc_id: int, request: DocumentUpdateRequest, db: Session = Depends(get_db)):

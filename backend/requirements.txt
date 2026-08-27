@@ -4,6 +4,12 @@ python-multipart
 sqlalchemy
 paddlepaddle
 paddleocr
+easyocr
 opencv-python-headless
 pydantic
 python-dotenv
+reportlab
+pdf2image
+pillow
+pandas
+openpyxl

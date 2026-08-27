@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { getApiUrl, resolveUploadUrl } from '../services/api';
+import { getApiUrl, resolveUploadUrl, apiFetch } from '../services/api';
 
 const FIELD_LABELS = {
   nik: "NIK",
@@ -32,7 +32,7 @@ export default function ReviewPage({ payload, onReset, onSaveSuccess }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const res = await fetch(getApiUrl('/api/documents/save'), {
+      const res = await apiFetch('/api/documents/save', {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

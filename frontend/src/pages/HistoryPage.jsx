@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getApiUrl, resolveUploadUrl } from '../services/api';
+import { getApiUrl, resolveUploadUrl, apiFetch } from '../services/api';
 
 const FIELD_LABELS = {
   nik: "NIK",
@@ -179,7 +179,10 @@ function DocCardItem({ doc, isChecked, isSelectMode, handleOpenDetail, handleTog
   const nikVal = data.nik?.value || "-";
   const namaVal = data.nama?.value || "-";
   const docTypeLabel = doc.template_type === 'form_pendaftaran' ? '📝 Formulir' : '🇮🇩 KTP Indonesia';
-  const thumbUrl = doc.filename ? resolveImgUrl(doc.filename) : null;
+  
+  // Utamakan thumbnail ringan (300px, quality 70%), fallback ke foto asli jika tidak ada
+  const thumbPath = doc.thumbnail_path || doc.filename;
+  const thumbUrl = thumbPath ? resolveImgUrl(thumbPath) : null;
   const isSent = doc.status_kirim === 'Terkirim';
 
   return (
@@ -193,6 +196,7 @@ function DocCardItem({ doc, isChecked, isSelectMode, handleOpenDetail, handleTog
           <img
             src={thumbUrl}
             alt="Thumbnail KTP"
+            loading="lazy"
             onError={() => setHasImgError(true)}
           />
           <span className="doc-type-badge">{docTypeLabel}</span>
@@ -242,6 +246,10 @@ function DocCardItem({ doc, isChecked, isSelectMode, handleOpenDetail, handleTog
 export default function HistoryPage({ onBack }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Pagination State (6 items per page for ultra-fast mobile load)
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, pages: 1, hasNext: false, hasPrev: false });
 
   // Select Mode State
   const [isSelectMode, setIsSelectMode] = useState(false);
@@ -272,20 +280,42 @@ export default function HistoryPage({ onBack }) {
   };
 
   useEffect(() => {
-    fetchDocuments();
+    fetchDocuments(1);
   }, []);
 
-  const fetchDocuments = async () => {
+  const fetchDocuments = async (pageNum = 1) => {
     setLoading(true);
     try {
-      const res = await fetch(getApiUrl('/api/documents/'));
+      const res = await apiFetch(`/api/documents/?page=${pageNum}&limit=6`);
       if (res.ok) {
         const data = await res.json();
-        setDocuments(data);
+        let itemsList = [];
+        let totalCount = 0;
+        let pagesCount = 1;
+        let hasNext = false;
+        let hasPrev = false;
+
+        if (Array.isArray(data)) {
+          itemsList = data;
+          totalCount = data.length;
+        } else if (data && Array.isArray(data.items)) {
+          itemsList = data.items;
+          totalCount = data.total || itemsList.length;
+          pagesCount = data.pages || 1;
+          hasNext = !!data.has_next;
+          hasPrev = !!data.has_prev;
+        }
+
+        setDocuments(itemsList);
+        setPagination({ total: totalCount, pages: pagesCount, hasNext, hasPrev });
+        setPage(pageNum);
       } else {
+        setDocuments([]);
         triggerToast('error', "Gagal mengambil daftar dokumen.");
       }
     } catch (e) {
+      console.error(e);
+      setDocuments([]);
       triggerToast('error', "Terjadi kesalahan jaringan saat mengambil data.");
     } finally {
       setLoading(false);
@@ -315,10 +345,11 @@ export default function HistoryPage({ onBack }) {
   };
 
   const handleSelectAll = () => {
-    if (selectedIds.length === documents.length) {
+    const docsArr = documents || [];
+    if (selectedIds.length === docsArr.length && docsArr.length > 0) {
       setSelectedIds([]);
     } else {
-      setSelectedIds(documents.map(d => d.id));
+      setSelectedIds(docsArr.map(d => d.id));
     }
   };
 
@@ -332,13 +363,13 @@ export default function HistoryPage({ onBack }) {
     if (!window.confirm(`Hapus ${selectedIds.length} data terpilih?`)) return;
 
     try {
-      const res = await fetch(getApiUrl('/api/documents/delete-multiple'), {
+      const res = await apiFetch('/api/documents/delete-multiple', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedIds })
       });
       if (res.ok) {
-        setDocuments(prev => prev.filter(d => !selectedIds.includes(d.id)));
+        setDocuments(prev => (prev || []).filter(d => !selectedIds.includes(d.id)));
         setSelectedIds([]);
         setIsSelectMode(false);
         triggerToast('success', "Data terpilih berhasil dihapus!");
@@ -362,7 +393,7 @@ export default function HistoryPage({ onBack }) {
 
   const handleBulkSend = () => {
     if (selectedIds.length === 0) return alert("Pilih minimal 1 data untuk dikirim.");
-    const selectedDocsList = documents.filter(d => selectedIds.includes(d.id));
+    const selectedDocsList = (documents || []).filter(d => selectedIds.includes(d.id));
     handleOpenSendEmailModal(selectedDocsList);
   };
 
@@ -378,7 +409,7 @@ export default function HistoryPage({ onBack }) {
     setEmailModal(prev => ({ ...prev, isSending: true, error: '' }));
     try {
       const ids = emailModal.docs.map(d => d.id);
-      const res = await fetch(getApiUrl('/api/documents/send-email'), {
+      const res = await apiFetch('/api/documents/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -390,7 +421,7 @@ export default function HistoryPage({ onBack }) {
       const data = await res.json();
 
       if (res.ok) {
-        setDocuments(prev => prev.map(d => ids.includes(d.id) ? { ...d, status_kirim: 'Terkirim' } : d));
+        setDocuments(prev => (prev || []).map(d => ids.includes(d.id) ? { ...d, status_kirim: 'Terkirim' } : d));
         if (selectedDoc && ids.includes(selectedDoc.id)) {
           setSelectedDoc(prev => ({ ...prev, status_kirim: 'Terkirim' }));
         }
@@ -421,14 +452,14 @@ export default function HistoryPage({ onBack }) {
     if (!selectedDoc) return;
     setUpdating(true);
     try {
-      const res = await fetch(getApiUrl(`/api/documents/${selectedDoc.id}`), {
+      const res = await apiFetch(`/api/documents/${selectedDoc.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ extracted_data: editFormData })
       });
 
       if (res.ok) {
-        setDocuments(prev => prev.map(d => d.id === selectedDoc.id ? { ...d, extracted_data: editFormData } : d));
+        setDocuments(prev => (prev || []).map(d => d.id === selectedDoc.id ? { ...d, extracted_data: editFormData } : d));
         setSelectedDoc(prev => ({ ...prev, extracted_data: editFormData }));
         setIsEditing(false);
         triggerToast('success', "Data KTP berhasil diperbarui!");
@@ -447,9 +478,9 @@ export default function HistoryPage({ onBack }) {
     if (!window.confirm("Apakah Anda yakin ingin menghapus data ini?")) return;
 
     try {
-      const res = await fetch(getApiUrl(`/api/documents/${selectedDoc.id}`), { method: 'DELETE' });
+      const res = await apiFetch(`/api/documents/${selectedDoc.id}`, { method: 'DELETE' });
       if (res.ok) {
-        setDocuments(prev => prev.filter(d => d.id !== selectedDoc.id));
+        setDocuments(prev => (prev || []).filter(d => d.id !== selectedDoc.id));
         setSelectedDoc(null);
         triggerToast('success', "Dokumen berhasil dihapus.");
       } else {
@@ -541,20 +572,45 @@ export default function HistoryPage({ onBack }) {
           <p>Belum ada data KTP yang tersimpan di database.</p>
         </div>
       ) : (
-        <div className="document-list">
-          {documents.map((doc) => (
-            <DocCardItem
-              key={doc.id}
-              doc={doc}
-              isChecked={selectedIds.includes(doc.id)}
-              isSelectMode={isSelectMode}
-              handleOpenDetail={handleOpenDetail}
-              handleToggleSelect={handleToggleSelect}
-              formatDate={formatDate}
-              handleOpenSendEmailModal={handleOpenSendEmailModal}
-            />
-          ))}
-        </div>
+        <>
+          <div className="document-list">
+            {documents.map((doc) => (
+              <DocCardItem
+                key={doc.id}
+                doc={doc}
+                isChecked={selectedIds.includes(doc.id)}
+                isSelectMode={isSelectMode}
+                handleOpenDetail={handleOpenDetail}
+                handleToggleSelect={handleToggleSelect}
+                formatDate={formatDate}
+                handleOpenSendEmailModal={handleOpenSendEmailModal}
+              />
+            ))}
+          </div>
+
+          {/* PAGINATION NAVIGATION BAR */}
+          {pagination.pages > 1 && (
+            <div className="pagination-bar">
+              <button
+                className="btn-pagination"
+                onClick={() => fetchDocuments(page - 1)}
+                disabled={!pagination.hasPrev || loading}
+              >
+                ← Sebelumnya
+              </button>
+              <span className="pagination-info">
+                Halaman {page} dari {pagination.pages}
+              </span>
+              <button
+                className="btn-pagination"
+                onClick={() => fetchDocuments(page + 1)}
+                disabled={!pagination.hasNext || loading}
+              >
+                Selanjutnya →
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* MODAL SEND EMAIL DIALOG */}

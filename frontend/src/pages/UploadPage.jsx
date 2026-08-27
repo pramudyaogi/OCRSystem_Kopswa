@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getApiUrl, resolveUploadUrl } from '../services/api';
+import { getApiUrl, resolveUploadUrl, apiFetch } from '../services/api';
 
 export default function UploadPage({ onExtractionComplete, onViewHistory }) {
   const [file, setFile] = useState(null);
@@ -112,7 +112,7 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
     try {
       let result;
       try {
-        const res = await fetch(getApiUrl('/api/upload/'), {
+        const res = await apiFetch('/api/upload/', {
           method: "POST",
           body: formData
         });
@@ -127,13 +127,13 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
         throw new Error("Upload Fetch Error: " + (uploadErr.message || uploadErr.toString()));
       }
 
-      let url = "";
+      let extractEndpoint = "";
       try {
         const cleanFilename = encodeURIComponent(result.filename.trim());
         const cleanTemplate = encodeURIComponent(template.trim());
-        url = getApiUrl(`/api/extract/${cleanFilename}?template_type=${cleanTemplate}`);
+        extractEndpoint = `/api/extract/${cleanFilename}?template_type=${cleanTemplate}`;
         
-        const extractRes = await fetch(url, {
+        const extractRes = await apiFetch(extractEndpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
