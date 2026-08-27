@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+sqlalchemy
+paddlepaddle
+paddleocr
+opencv-python-headless
+pydantic
+python-dotenv

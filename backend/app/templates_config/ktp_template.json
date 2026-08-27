@@ -1,0 +1,15 @@
+{
+  "nama_template": "KTP",
+  "base_width": 1000,
+  "base_height": 630,
+  "fields": [
+    { "nama_field": "nik", "type": "text", "description": "Nomor Induk Kependudukan", "validasi": "16_digit_angka" },
+    { "nama_field": "nama", "type": "text", "description": "Nama Lengkap" },
+    { "nama_field": "tempat_tgl_lahir", "type": "text", "description": "Tempat dan Tanggal Lahir" },
+    { "nama_field": "alamat_lengkap", "type": "text", "description": "Alamat Lengkap" },
+    { "nama_field": "jenis_kelamin", "type": "text", "description": "Jenis Kelamin" },
+    { "nama_field": "agama", "type": "text", "description": "Agama" },
+    { "nama_field": "status_perkawinan", "type": "text", "description": "Status Perkawinan" },
+    { "nama_field": "pekerjaan", "type": "text", "description": "Pekerjaan" }
+  ]
+}

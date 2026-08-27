@@ -1,0 +1,11 @@
+{
+  "nama_template": "form_pendaftaran",
+  "base_width": 800,
+  "base_height": 1100,
+  "fields": [
+    { "nama_field": "nama_lengkap", "x": 100, "y": 150, "width": 600, "height": 50, "validasi": "huruf" },
+    { "nama_field": "nomor_hp", "x": 100, "y": 250, "width": 300, "height": 50, "validasi": "bebas" },
+    { "nama_field": "email", "x": 100, "y": 350, "width": 600, "height": 50, "validasi": "bebas" },
+    { "nama_field": "alamat_domisili", "x": 100, "y": 450, "width": 600, "height": 150, "validasi": "bebas" }
+  ]
+}

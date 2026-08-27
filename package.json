@@ -1,0 +1,8 @@
+{
+  "name": "document-ocr-system",
+  "version": "1.0.0",
+  "description": "System Document OCR Koperasi Swadharma",
+  "scripts": {
+    "start": "start.bat"
+  }
+}

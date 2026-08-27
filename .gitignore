@@ -1,0 +1,68 @@
+# ==========================================
+# Comprehensive .gitignore for Document OCR System
+# ==========================================
+
+# 1. Virtual Environments & Python
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# 2. OCR Models & Cached Weights
+.easyocr/
+.paddleocr/
+models/
+*.pth
+*.onnx
+*.tar
+*.zip
+*.bin
+
+# 3. Node & Frontend Build Artifacts
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+.npm/
+.vite/
+frontend/.vite/
+
+# 4. Database Files (SQLite - stays strictly local)
+*.db
+*.sqlite
+*.sqlite3
+database/*.db
+database/app.db
+
+# 5. Local File Storage (Keep directory structure via .gitkeep)
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/processed/*
+!backend/storage/processed/.gitkeep
+
+# 6. Sensitive Environment Files
+.env
+.env.local
+.env.development.local
+.env.production.local
+backend/.env
+# Note: frontend/.env.example and frontend/.env.production are kept for configuration reference
+
+# 7. OS & IDE Metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
