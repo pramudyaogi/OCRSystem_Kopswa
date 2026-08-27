@@ -124,7 +124,7 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
           return;
         }
       } catch (uploadErr) {
-        throw new Error("Upload Fetch Error: " + (uploadErr.message || uploadErr.toString()));
+        throw new Error("Gagal terhubung ke Mesin AI Laptop. Pastikan Terminal Python & Tunnel di laptop sudah dinyalakan.");
       }
 
       let extractEndpoint = "";
