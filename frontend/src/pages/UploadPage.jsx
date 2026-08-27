@@ -103,7 +103,7 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
 
   const compressImageIfNeeded = (inputFile) => {
     return new Promise((resolve) => {
-      if (!inputFile || inputFile.type === 'application/pdf' || inputFile.size < 400 * 1024) {
+      if (!inputFile || inputFile.type === 'application/pdf') {
         resolve(inputFile);
         return;
       }
@@ -116,7 +116,7 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
       };
       
       img.onload = () => {
-        const maxDim = 1600;
+        const maxDim = 2400; // High-precision 2400px max dimension for AI OCR
         let width = img.width;
         let height = img.height;
         
@@ -149,7 +149,7 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
             resolve(compressedFile);
           },
           'image/jpeg',
-          0.82
+          0.92 // 92%+ high JPEG quality to retain maximum OCR text sharpness
         );
       };
       

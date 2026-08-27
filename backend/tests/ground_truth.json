@@ -1,0 +1,20 @@
+{
+  "sample_ktp_1.jpg": {
+    "provinsi": "PROVINSI JAWA BARAT",
+    "kota": "KOTA BANDUNG",
+    "nik": "3273010101900001",
+    "nama": "BUDI SANTOSO",
+    "tempat_tgl_lahir": "BANDUNG, 01-01-1990",
+    "jenis_kelamin": "LAKI-LAKI",
+    "gol_darah": "O",
+    "alamat": "JL. MERDEKA NO. 123",
+    "rt_rw": "001/002",
+    "kel_desa": "CITARUM",
+    "kecamatan": "BANDUNG WETAN",
+    "agama": "ISLAM",
+    "status_perkawinan": "KAWIN",
+    "pekerjaan": "KARYAWAN SWASTA",
+    "kewarganegaraan": "WNI",
+    "berlaku_hingga": "SEUMUR HIDUP"
+  }
+}

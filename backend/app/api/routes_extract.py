@@ -39,6 +39,18 @@ async def extract_document_data(filename: str, template_type: str = "ktp"):
         
         use_trocr = (template_type == "form_pendaftaran")
         full_text_blocks = extract_full_text(processed_img, use_trocr=use_trocr)
+        
+        # Save raw OCR text blocks to storage/debug/ for inspection
+        import json
+        debug_dir = BASE_DIR / "storage" / "debug"
+        if not os.path.exists(debug_dir):
+            os.makedirs(debug_dir, exist_ok=True)
+            
+        base_stem = os.path.splitext(filename)[0]
+        raw_json_path = debug_dir / f"{base_stem}_raw_ocr.json"
+        with open(raw_json_path, "w", encoding="utf-8") as f:
+            json.dump(full_text_blocks, f, indent=2, ensure_ascii=False)
+
         print(f"\n================ [AI OCR RESULT] ================")
         for idx, b in enumerate(full_text_blocks):
             print(f"Blok {idx+1}: {b['text']} (Conf: {b['confidence']:.2f})")

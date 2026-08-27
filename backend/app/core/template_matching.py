@@ -214,7 +214,60 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
         avg_conf = sum(b["confidence"] for b in grouped) / len(grouped)
         extracted[field_key] = {"value": combined_text.strip(), "confidence": avg_conf}
 
-    # Jalankan pencocokan spasial untuk seluruh kolom KTP
+    # Define 1000x630 fixed KTP Spatial Zones (Coordinates from warped image)
+    KTP_SPATIAL_ZONES = {
+        "provinsi": {"min_y": 0, "max_y": 70, "min_x": 120, "max_x": 880},
+        "kota": {"min_y": 40, "max_y": 120, "min_x": 120, "max_x": 880},
+        "nik": {"min_y": 110, "max_y": 200, "min_x": 180, "max_x": 880},
+        "nama": {"min_y": 185, "max_y": 255, "min_x": 200, "max_x": 920},
+        "tempat_tgl_lahir": {"min_y": 235, "max_y": 295, "min_x": 200, "max_x": 920},
+        "jenis_kelamin": {"min_y": 280, "max_y": 335, "min_x": 200, "max_x": 580},
+        "gol_darah": {"min_y": 280, "max_y": 335, "min_x": 580, "max_x": 950},
+        "alamat": {"min_y": 325, "max_y": 375, "min_x": 200, "max_x": 920},
+        "rt_rw": {"min_y": 365, "max_y": 415, "min_x": 200, "max_x": 920},
+        "kel_desa": {"min_y": 405, "max_y": 455, "min_x": 200, "max_x": 920},
+        "kecamatan": {"min_y": 445, "max_y": 495, "min_x": 200, "max_x": 920},
+        "agama": {"min_y": 485, "max_y": 535, "min_x": 200, "max_x": 920},
+        "status_perkawinan": {"min_y": 525, "max_y": 570, "min_x": 200, "max_x": 920},
+        "pekerjaan": {"min_y": 560, "max_y": 605, "min_x": 200, "max_x": 920},
+        "kewarganegaraan": {"min_y": 590, "max_y": 630, "min_x": 200, "max_x": 650},
+        "berlaku_hingga": {"min_y": 590, "max_y": 630, "min_x": 650, "max_x": 980}
+    }
+
+    # TAHAP 1: Match blocks directly into Spatial Zones (Primary Hybrid Method)
+    for field_key, zone in KTP_SPATIAL_ZONES.items():
+        candidates = []
+        for b in parsed_blocks:
+            if zone["min_y"] <= b["cy"] <= zone["max_y"] and zone["min_x"] <= b["min_x"] <= zone["max_x"]:
+                txt_clean = b["text"].upper()
+                for lbl in ALL_LABELS:
+                    txt_clean = re.sub(r'\b' + re.escape(lbl) + r'\b', '', txt_clean).strip(" :-")
+                if txt_clean and not is_label_text(txt_clean):
+                    candidates.append((b, txt_clean))
+                    
+        if candidates:
+            candidates.sort(key=lambda item: item[0]["min_x"])
+            val = " ".join([c[1] for c in candidates])
+            avg_conf = sum([c[0]["confidence"] for c in candidates]) / len(candidates)
+            
+            # Format validation via RegEx
+            if field_key == "nik":
+                digits = re.sub(r'\D', '', val)
+                if len(digits) >= 14:
+                    val = digits
+            elif field_key == "jenis_kelamin":
+                if "LAKI" in val:
+                    val = "LAKI-LAKI"
+                elif "PEREMP" in val or "WANITA" in val:
+                    val = "PEREMPUAN"
+                    
+            extracted[field_key] = {
+                "value": val.strip(),
+                "confidence": float(avg_conf),
+                "needs_review": bool(avg_conf < 0.70)
+            }
+
+    # TAHAP 2: Fallback ke Spatial Alignment berbasis Keyword untuk field yang belum terisi
     find_field_spatial(["PROVINSI"], "provinsi")
     find_field_spatial(["KABUPATEN", "KOTA"], "kota")
     find_field_spatial(["NIK"], "nik")
@@ -231,5 +284,11 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
     find_field_spatial(["PEKERJAAN"], "pekerjaan")
     find_field_spatial(["KEWARGANEGARAAN"], "kewarganegaraan")
     find_field_spatial(["BERLAKU", "HINGGA"], "berlaku_hingga")
+
+    # Final confidence gate status update across all fields
+    for fk, data in extracted.items():
+        if isinstance(data, dict):
+            conf = data.get("confidence", 0.0)
+            data["needs_review"] = bool(conf < 0.70 or not data.get("value"))
 
     return extracted

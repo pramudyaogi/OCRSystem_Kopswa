@@ -245,9 +245,9 @@ def crop_ktp_with_yolo(image: np.ndarray) -> np.ndarray:
     # JANGAN pakai auto_crop_document karena rawan salah potong kotak kecil di KTP.
     return image
 
-def preprocess_pipeline(image_path: str) -> Optional[np.ndarray]:
+def preprocess_pipeline(image_path: str, save_debug: bool = True) -> Optional[np.ndarray]:
     """
-    Pipa (Pipeline) lengkap untuk memproses gambar dokumen.
+    Pipa (Pipeline) lengkap untuk memproses gambar dokumen + Debug Image Logging.
     """
     # Load gambar secara aman (mendukung path Windows dengan spasi / karakter khusus)
     image = None
@@ -277,19 +277,32 @@ def preprocess_pipeline(image_path: str) -> Optional[np.ndarray]:
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
         h, w = w, h # Update dimensi setelah rotasi
         
-    # [PENTING] Resize gambar agar tidak memakan waktu 3 menit di CPU (Penyebab Timeout Vite)
-    max_dim = 1280
+    # Resize gambar agar tidak memakan waktu lama di CPU
+    max_dim = 1600
     if max(h, w) > max_dim:
         scale = max_dim / max(h, w)
         image = cv2.resize(image, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
         
+    # Prepare debug dir
+    import os
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    debug_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "storage", "debug"))
+    if save_debug and not os.path.exists(debug_dir):
+        os.makedirs(debug_dir, exist_ok=True)
+        
     # 2. Mata Elang YOLOv8 (Jika file model ada)
     roi_image = crop_ktp_with_yolo(image)
+    if save_debug and roi_image is not None:
+        cv2.imwrite(os.path.join(debug_dir, f"{base_name}_1_yolo_crop.jpg"), roi_image)
     
     # 3. Perspective Transformation (Auto-Warp 4 sudut dengan Fallback Aman)
     warped_image = perspective_transform_ktp(roi_image)
+    if save_debug and warped_image is not None:
+        cv2.imwrite(os.path.join(debug_dir, f"{base_name}_2_after_warp.jpg"), warped_image)
     
     # 4. Filter Penjernih Glare & Bayangan Lampu (Adaptive LAB CLAHE)
     final_image = reduce_glare_and_enhance(warped_image)
+    if save_debug and final_image is not None:
+        cv2.imwrite(os.path.join(debug_dir, f"{base_name}_3_after_glare_reduction.jpg"), final_image)
     
     return final_image
