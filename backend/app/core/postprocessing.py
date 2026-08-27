@@ -118,6 +118,19 @@ def smart_split_joined_words(text: str) -> str:
         
     return text.strip()
 
+def clean_ktp_label_words(text: str) -> str:
+    """Metode pembersih label KTP dari kebocoran teks label (seperti RTRW, KEC, PROVINSI, JERIS)."""
+    if not text:
+        return ""
+    labels = ["PROVINSI", "KABUPATEN", "KOTA", "NIK", "NAMA", "TEMPAT", "TGL", "LAHIR",
+              "JENIS", "KELAMIN", "GOL", "DARAH", "ALAMAT", "RT/RW", "RTRW", "KEL/DESA",
+              "KELURAHAN", "KECAMATAN", "KEC", "AGAMA", "STATUS", "PERKAWINAN", "PEKERJAAN",
+              "KEWARGANEGARAAN", "BERLAKU", "HINGGA", "JERIS"]
+    res = text
+    for lbl in labels:
+        res = re.sub(r'\b' + re.escape(lbl) + r'\b', '', res, flags=re.IGNORECASE)
+    return re.sub(r'\s+', ' ', res).strip(" :-")
+
 def postprocess_extracted_data(extracted_data: Dict[str, Any], template_fields_config: List[dict]) -> Dict[str, Any]:
     """
     Fungsi utama untuk memvalidasi dan mengkoreksi seluruh data (dictionary) 
@@ -138,6 +151,10 @@ def postprocess_extracted_data(extracted_data: Dict[str, Any], template_fields_c
         original_val = clean_text(val_raw)
         # Aplikasikan smart word splitting untuk kata nempel
         original_val = smart_split_joined_words(original_val)
+        
+        # Membersihkan kebocoran kata label dari nilai field
+        if field_name not in ["alamat", "provinsi", "kota", "kecamatan", "kel_desa"]:
+            original_val = clean_ktp_label_words(original_val)
         
         rule = validation_rules.get(field_name, "bebas")
         

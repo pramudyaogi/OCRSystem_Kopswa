@@ -214,7 +214,25 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
         avg_conf = sum(b["confidence"] for b in grouped) / len(grouped)
         extracted[field_key] = {"value": combined_text.strip(), "confidence": avg_conf}
 
-    # Define 1000x630 fixed KTP Spatial Zones (Coordinates from warped image)
+    # TAHAP 1: Relative Spatial Alignment berdasarkan Anchor Keyword Label (Prioritas Utama untuk HP)
+    find_field_spatial(["PROVINSI"], "provinsi")
+    find_field_spatial(["KABUPATEN", "KOTA"], "kota")
+    find_field_spatial(["NIK"], "nik")
+    find_field_spatial(["NAMA"], "nama")
+    find_field_spatial(["TEMPAT", "LAHIR", "TGL"], "tempat_tgl_lahir")
+    find_field_spatial(["JENIS", "KELAMIN"], "jenis_kelamin", next_label_keywords=["GOL", "DARAH"])
+    find_field_spatial(["GOL", "DARAH"], "gol_darah")
+    find_field_spatial(["ALAMAT"], "alamat")
+    find_field_spatial(["RT/RW", "RT/"], "rt_rw")
+    find_field_spatial(["KEL/DESA", "KELURAHAN"], "kel_desa")
+    find_field_spatial(["KECAMATAN"], "kecamatan")
+    find_field_spatial(["AGAMA"], "agama")
+    find_field_spatial(["STATUS", "PERKAWINAN"], "status_perkawinan")
+    find_field_spatial(["PEKERJAAN"], "pekerjaan")
+    find_field_spatial(["KEWARGANEGARAAN"], "kewarganegaraan")
+    find_field_spatial(["BERLAKU", "HINGGA"], "berlaku_hingga")
+
+    # TAHAP 2: Fallback ke KTP_SPATIAL_ZONES untuk field yang belum terisi sama sekali
     KTP_SPATIAL_ZONES = {
         "provinsi": {"min_y": 0, "max_y": 70, "min_x": 120, "max_x": 880},
         "kota": {"min_y": 40, "max_y": 120, "min_x": 120, "max_x": 880},
@@ -234,8 +252,10 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
         "berlaku_hingga": {"min_y": 590, "max_y": 630, "min_x": 650, "max_x": 980}
     }
 
-    # TAHAP 1: Match blocks directly into Spatial Zones (Primary Hybrid Method)
     for field_key, zone in KTP_SPATIAL_ZONES.items():
+        if extracted.get(field_key, {}).get("value"):
+            continue
+            
         candidates = []
         for b in parsed_blocks:
             if zone["min_y"] <= b["cy"] <= zone["max_y"] and zone["min_x"] <= b["min_x"] <= zone["max_x"]:
@@ -249,41 +269,11 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
             candidates.sort(key=lambda item: item[0]["min_x"])
             val = " ".join([c[1] for c in candidates])
             avg_conf = sum([c[0]["confidence"] for c in candidates]) / len(candidates)
-            
-            # Format validation via RegEx
-            if field_key == "nik":
-                digits = re.sub(r'\D', '', val)
-                if len(digits) >= 14:
-                    val = digits
-            elif field_key == "jenis_kelamin":
-                if "LAKI" in val:
-                    val = "LAKI-LAKI"
-                elif "PEREMP" in val or "WANITA" in val:
-                    val = "PEREMPUAN"
-                    
             extracted[field_key] = {
                 "value": val.strip(),
                 "confidence": float(avg_conf),
                 "needs_review": bool(avg_conf < 0.70)
             }
-
-    # TAHAP 2: Fallback ke Spatial Alignment berbasis Keyword untuk field yang belum terisi
-    find_field_spatial(["PROVINSI"], "provinsi")
-    find_field_spatial(["KABUPATEN", "KOTA"], "kota")
-    find_field_spatial(["NIK"], "nik")
-    find_field_spatial(["NAMA"], "nama")
-    find_field_spatial(["TEMPAT", "LAHIR", "TGL"], "tempat_tgl_lahir")
-    find_field_spatial(["JENIS", "KELAMIN"], "jenis_kelamin", next_label_keywords=["GOL", "DARAH"])
-    find_field_spatial(["GOL", "DARAH"], "gol_darah")
-    find_field_spatial(["ALAMAT"], "alamat")
-    find_field_spatial(["RT/RW", "RT/"], "rt_rw")
-    find_field_spatial(["KEL/DESA", "KELURAHAN"], "kel_desa")
-    find_field_spatial(["KECAMATAN"], "kecamatan")
-    find_field_spatial(["AGAMA"], "agama")
-    find_field_spatial(["STATUS", "PERKAWINAN"], "status_perkawinan")
-    find_field_spatial(["PEKERJAAN"], "pekerjaan")
-    find_field_spatial(["KEWARGANEGARAAN"], "kewarganegaraan")
-    find_field_spatial(["BERLAKU", "HINGGA"], "berlaku_hingga")
 
     # Final confidence gate status update across all fields
     for fk, data in extracted.items():
