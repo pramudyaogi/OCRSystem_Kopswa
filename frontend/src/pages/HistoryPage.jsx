@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { getApiUrl, resolveUploadUrl, apiFetch } from '../services/api';
+import { getApiUrl, resolveUploadUrl, apiFetch, fetchSupabaseDocuments, deleteSupabaseDocuments } from '../services/api';
 
 const FIELD_LABELS = {
   nik: "NIK",
@@ -286,6 +286,26 @@ export default function HistoryPage({ onBack }) {
   const fetchDocuments = async (pageNum = 1) => {
     setLoading(true);
     try {
+      // 1. Utamakan ambil langsung dari Supabase Cloud Database (0.05 detik, bebas localtunnel)
+      try {
+        const supaData = await fetchSupabaseDocuments(pageNum, 6);
+        if (supaData && Array.isArray(supaData.items)) {
+          setDocuments(supaData.items);
+          setPagination({
+            total: supaData.total,
+            pages: supaData.pages,
+            hasNext: supaData.has_next,
+            hasPrev: supaData.has_prev
+          });
+          setPage(pageNum);
+          setLoading(false);
+          return;
+        }
+      } catch (supaErr) {
+        console.warn("Fallback to backend API:", supaErr);
+      }
+
+      // 2. Fallback ke Backend API jika Supabase DB offline
       const res = await apiFetch(`/api/documents/?page=${pageNum}&limit=6`);
       if (res.ok) {
         const data = await res.json();

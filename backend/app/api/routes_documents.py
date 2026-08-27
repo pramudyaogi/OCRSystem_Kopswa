@@ -3,10 +3,13 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Dict, Any, List
 
+import os
 from app.db.database import get_db, engine, Base
 from app.models.db_models import DocumentRecord
 from app.core.email_service import send_documents_via_email
 from app.core.thumbnail_service import create_thumbnail
+from app.core.supabase_service import upload_file_to_supabase
+from app.config import UPLOAD_DIR
 
 Base.metadata.create_all(bind=engine)
 
@@ -67,15 +70,35 @@ def send_documents_email(request: SendEmailRequest, db: Session = Depends(get_db
 def save_document_result(request: DocumentSaveRequest, db: Session = Depends(get_db)):
     """
     Endpoint untuk menyimpan data final ke dalam database SQLite.
-    Juga membuat thumbnail (~300px, quality ~70%) secara otomatis.
+    Juga membuat thumbnail (~300px, quality ~70%) dan menyinkronkan ke Supabase Storage.
     """
     try:
-        # Generate thumbnail untuk foto KTP
+        # 1. Generate thumbnail lokal
         thumb_path = create_thumbnail(request.filename)
 
+        final_filename = request.filename
+        final_thumb_path = thumb_path
+
+        # 2. Sync foto asli ke Supabase Storage jika file lokal ada
+        if request.filename and not request.filename.startswith("http"):
+            local_orig = os.path.join(UPLOAD_DIR, request.filename)
+            if os.path.exists(local_orig):
+                supa_url = upload_file_to_supabase(local_orig, f"uploads/{request.filename}")
+                if supa_url:
+                    final_filename = supa_url
+
+        # 3. Sync thumbnail ke Supabase Storage jika file lokal ada
+        if thumb_path and not thumb_path.startswith("http"):
+            clean_thumb = thumb_path.replace("thumbnails/", "").replace("/thumbnails/", "")
+            local_thumb = os.path.join(UPLOAD_DIR, "thumbnails", clean_thumb)
+            if os.path.exists(local_thumb):
+                supa_thumb = upload_file_to_supabase(local_thumb, f"thumbnails/{clean_thumb}")
+                if supa_thumb:
+                    final_thumb_path = supa_thumb
+
         new_doc = DocumentRecord(
-            filename=request.filename,
-            thumbnail_path=thumb_path,
+            filename=final_filename,
+            thumbnail_path=final_thumb_path,
             template_type=request.template_type,
             extracted_data=request.extracted_data,
             status="verified"
@@ -87,9 +110,10 @@ def save_document_result(request: DocumentSaveRequest, db: Session = Depends(get
         
         return {
             "status": "success", 
-            "message": "Data berhasil disimpan secara lokal.", 
+            "message": "Data berhasil disimpan ke Supabase Cloud Storage & Database.", 
             "id": new_doc.id,
-            "thumbnail_path": thumb_path
+            "filename": final_filename,
+            "thumbnail_path": final_thumb_path
         }
     except Exception as e:
         db.rollback()
