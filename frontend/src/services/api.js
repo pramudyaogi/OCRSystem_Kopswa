@@ -1,7 +1,8 @@
 // Centralized API configuration for Document OCR System Frontend
 
 const defaultTunnelUrl = 'https://06efc0c2eec22383-182-3-51-216.serveousercontent.com';
-const rawApiUrl = import.meta.env.VITE_API_URL || defaultTunnelUrl;
+const envUrl = import.meta.env.VITE_API_URL || '';
+const rawApiUrl = (envUrl && !envUrl.includes('loca.lt')) ? envUrl : defaultTunnelUrl;
 export const API_BASE_URL = rawApiUrl.replace(/\/$/, '');
 
 export const SUPABASE_URL = "https://qeuviylbnrjtmyuomzrr.supabase.co";
