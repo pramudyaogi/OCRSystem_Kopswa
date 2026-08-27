@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 from typing import Tuple, Optional
@@ -236,71 +237,71 @@ def reduce_glare_and_enhance(image: np.ndarray) -> np.ndarray:
 
 def crop_ktp_with_yolo(image: np.ndarray) -> np.ndarray:
     """
-    [Fase 2] Integrasi YOLOv8 Object Detection.
-    Berfungsi untuk mencari kotak KTP (Region of Interest) dari gambar asli.
-    Jika model YOLO khusus KTP belum ada, otomatis fallback ke algoritma asli (tanpa crop berisiko).
+    Integrasi YOLOv8 Object Detection untuk potong KTP dari background.
+    Jika model YOLO belum ada/gagal, return gambar asli.
     """
+    weights_path = os.path.join(os.path.dirname(__file__), "..", "models", "ktp_detector.pt")
+    if not os.path.exists(weights_path):
+        return image
+
     try:
         from ultralytics import YOLO
-        import os
+        model = YOLO(weights_path)
+        results = model(image, verbose=False)
         
-        yolo_model_path = os.path.join(os.path.dirname(__file__), "ktp_detector.pt")
-        
-        if os.path.exists(yolo_model_path):
-            model = YOLO(yolo_model_path)
-            results = model(image, verbose=False)
+        if len(results) > 0 and len(results[0].boxes) > 0:
+            box = results[0].boxes[0]
+            x1, y1, x2, y2 = map(int, box.xyxy[0])
             
-            if len(results[0].boxes) > 0:
-                box = results[0].boxes[0]
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                
-                h, w = image.shape[:2]
-                pad = 20
-                x1, y1 = max(0, x1-pad), max(0, y1-pad)
-                x2, y2 = min(w, x2+pad), min(h, y2+pad)
-                
-                print("[YOLOv8] KTP berhasil dideteksi dan dipotong dari background!")
-                return image[y1:y2, x1:x2]
+            h, w = image.shape[:2]
+            pad = 20
+            x1, y1 = max(0, x1-pad), max(0, y1-pad)
+            x2, y2 = min(w, x2+pad), min(h, y2+pad)
+            
+            print("[YOLOv8] KTP berhasil dideteksi dan dipotong dari background!")
+            return image[y1:y2, x1:x2]
     except Exception as e:
         print(f"[YOLO WARN] Bypass deteksi: {e}")
         
-    # [Fallback Aman] Kembalikan gambar utuh. 
-    # JANGAN pakai auto_crop_document karena rawan salah potong kotak kecil di KTP.
     return image
 
 def preprocess_pipeline(image_path: str, save_debug: bool = True) -> Optional[np.ndarray]:
     """
     Pipa (Pipeline) lengkap untuk memproses gambar dokumen + Debug Image Logging.
+    Termasuk EXIF orientation auto-transpose & deskewing.
     """
-    # Load gambar secara aman (mendukung path Windows dengan spasi / karakter khusus)
     image = None
+
+    # 1. Gunakan PIL + ImageOps.exif_transpose PERTAMA kali untuk membaca metadata EXIF kamera HP
     try:
-        img_array = np.fromfile(image_path, dtype=np.uint8)
-        image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-    except Exception as e:
-        print(f"[IMREAD NP ERROR]: {e}")
-        
+        from PIL import Image, ImageOps
+        pil_img = Image.open(image_path)
+        pil_img = ImageOps.exif_transpose(pil_img).convert('RGB')
+        image = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
+    except Exception as pil_err:
+        print(f"[PIL EXIF READ ERROR]: {pil_err}")
+
+    # Fallback jika PIL gagal
+    if image is None:
+        try:
+            img_array = np.fromfile(image_path, dtype=np.uint8)
+            image = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        except Exception as e:
+            print(f"[IMREAD NP ERROR]: {e}")
+            
     if image is None:
         image = cv2.imread(image_path)
         
     if image is None:
-        try:
-            from PIL import Image
-            pil_img = Image.open(image_path).convert('RGB')
-            image = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGB2BGR)
-        except Exception as pil_err:
-            print(f"[PIL READ ERROR]: {pil_err}")
-            
-    if image is None:
         return None
         
-    # 1. Pastikan orientasi gambar mendatar (Landscape)
+    # 2. Pastikan orientasi gambar mendatar (Landscape)
     h, w = image.shape[:2]
     if h > w:
         image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
         h, w = w, h # Update dimensi setelah rotasi
         
-    # Resize gambar agar tidak memakan waktu lama di CPU
+    # Resize gambar jika sangat besar agar tidak lambat di CPU
     max_dim = 1600
     if max(h, w) > max_dim:
         scale = max_dim / max(h, w)
@@ -313,17 +314,21 @@ def preprocess_pipeline(image_path: str, save_debug: bool = True) -> Optional[np
     if save_debug and not os.path.exists(debug_dir):
         os.makedirs(debug_dir, exist_ok=True)
         
-    # 2. Mata Elang YOLOv8 (Jika file model ada)
+    # 3. Potong area KTP dari background (YOLO jika ada model)
     roi_image = crop_ktp_with_yolo(image)
     if save_debug and roi_image is not None:
         cv2.imwrite(os.path.join(debug_dir, f"{base_name}_1_yolo_crop.jpg"), roi_image)
     
-    # 3. Perspective Transformation (Auto-Warp 4 sudut dengan Fallback Aman)
+    # 4. Perspective Transformation (Auto-Warp 4 sudut ke 1000x630px)
     warped_image = perspective_transform_ktp(roi_image)
+    
+    # 5. Deskewing tambahan untuk memperbaiki kemiringan kecil (0.5 - 25 derajat)
+    warped_image = deskew_image(warped_image)
+    
     if save_debug and warped_image is not None:
         cv2.imwrite(os.path.join(debug_dir, f"{base_name}_2_after_warp.jpg"), warped_image)
     
-    # 4. Filter Penjernih Glare & Bayangan Lampu (Adaptive LAB CLAHE)
+    # 6. Filter Penjernih Glare & Bayangan Lampu (Adaptive LAB CLAHE + Unsharp Mask)
     final_image = reduce_glare_and_enhance(warped_image)
     if save_debug and final_image is not None:
         cv2.imwrite(os.path.join(debug_dir, f"{base_name}_3_after_glare_reduction.jpg"), final_image)
