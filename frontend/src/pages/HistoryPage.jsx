@@ -593,24 +593,9 @@ export default function HistoryPage({ onBack }) {
         </div>
       ) : (
         <>
-          <div className="document-list">
-            {documents.map((doc) => (
-              <DocCardItem
-                key={doc.id}
-                doc={doc}
-                isChecked={selectedIds.includes(doc.id)}
-                isSelectMode={isSelectMode}
-                handleOpenDetail={handleOpenDetail}
-                handleToggleSelect={handleToggleSelect}
-                formatDate={formatDate}
-                handleOpenSendEmailModal={handleOpenSendEmailModal}
-              />
-            ))}
-          </div>
-
-          {/* PAGINATION NAVIGATION BAR */}
+          {/* PAGINATION NAVIGATION BAR (DI ATAS LIST DOKUMEN) */}
           {pagination.pages > 1 && (
-            <div className="pagination-bar">
+            <div className="pagination-bar pagination-top">
               <button
                 className="btn-pagination"
                 onClick={() => fetchDocuments(page - 1)}
@@ -630,6 +615,21 @@ export default function HistoryPage({ onBack }) {
               </button>
             </div>
           )}
+
+          <div className="document-list">
+            {documents.map((doc) => (
+              <DocCardItem
+                key={doc.id}
+                doc={doc}
+                isChecked={selectedIds.includes(doc.id)}
+                isSelectMode={isSelectMode}
+                handleOpenDetail={handleOpenDetail}
+                handleToggleSelect={handleToggleSelect}
+                formatDate={formatDate}
+                handleOpenSendEmailModal={handleOpenSendEmailModal}
+              />
+            ))}
+          </div>
         </>
       )}
 

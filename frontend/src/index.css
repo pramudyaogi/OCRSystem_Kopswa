@@ -2315,3 +2315,17 @@ select:focus, input[type="text"]:focus {
   color: var(--text-main);
 }
 
+/* ELIMINATE DOUBLE SCROLLBAR FOR HISTORY CONTAINER */
+.history-panel,
+.document-list {
+  max-height: none !important;
+  overflow: visible !important;
+  height: auto !important;
+}
+
+.pagination-top {
+  margin-top: 0 !important;
+  margin-bottom: 1.25rem !important;
+}
+
+
