@@ -105,38 +105,77 @@ def order_points(pts: np.ndarray) -> np.ndarray:
     rect[3] = pts[np.argmax(diff)]
     return rect
 
+def is_valid_ktp_rectangle(pts: np.ndarray, img_w: int, img_h: int) -> bool:
+    """
+    Validasi apakah 4 titik membentuk persegi panjang KTP yang masuk akal:
+    1. Harus cembung (convex).
+    2. Aspect ratio mendekati rasio KTP (1.3 hingga 1.9).
+    3. Luas minimal 15% dari total gambar.
+    """
+    if len(pts) != 4:
+        return False
+        
+    if not cv2.isContourConvex(pts):
+        return False
+        
+    rect = order_points(pts.reshape(4, 2))
+    (tl, tr, br, bl) = rect
+    
+    # Hitung lebar & tinggi kontur
+    widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+    widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+    maxWidth = max(int(widthA), int(widthB))
+    
+    heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+    heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+    maxHeight = max(int(heightA), int(heightB))
+    
+    if maxHeight == 0 or maxWidth == 0:
+        return False
+        
+    aspect_ratio = float(maxWidth) / float(maxHeight)
+    area = cv2.contourArea(pts)
+    total_area = img_w * img_h
+    
+    # KTP ideal aspect ratio ~ 1.58. Beri toleransi aman (1.2 - 2.0)
+    if area > (total_area * 0.15) and (1.2 <= aspect_ratio <= 2.0):
+        return True
+        
+    return False
+
 def perspective_transform_ktp(image: np.ndarray) -> np.ndarray:
     """
     Mendeteksi 4 sudut kartu KTP dan meluruskannya (Perspective Transformation)
-    menjadi persegi panjang datar 1000x630 pixel seperti di aplikasi Bank.
+    menjadi persegi panjang datar 1000x630 pixel.
+    JIKA DETEKSI GAGAL ATAU CONFIDENCE RENDAH -> FALLBACK RETURN ASLI.
     """
-    h_orig, w_orig = image.shape[:2]
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
-    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    edged = cv2.Canny(blurred, 50, 150)
-    
-    contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
-    
-    doc_contour = None
-    for c in contours:
-        peri = cv2.arcLength(c, True)
-        approx = cv2.approxPolyDP(c, 0.02 * peri, True)
-        if len(approx) == 4:
-            area = cv2.contourArea(c)
-            # Pastikan kontur kartu cukup besar (minimal 15% dari total gambar)
-            if area > (h_orig * w_orig * 0.15):
+    try:
+        h_orig, w_orig = image.shape[:2]
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edged = cv2.Canny(blurred, 50, 150)
+        
+        contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if not contours:
+            return image
+            
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
+        
+        doc_contour = None
+        for c in contours:
+            peri = cv2.arcLength(c, True)
+            approx = cv2.approxPolyDP(c, 0.02 * peri, True)
+            if len(approx) == 4 and is_valid_ktp_rectangle(approx, w_orig, h_orig):
                 doc_contour = approx
                 break
+                
+        if doc_contour is None:
+            return image # Fallback aman tanpa warp jika tidak memenuhi syarat
             
-    if doc_contour is None:
-        return image
-        
-    try:
         pts = doc_contour.reshape(4, 2)
         rect = order_points(pts)
         
-        # Dimensi standar KTP 1000 x 630 pixel
+        # Dimensi standar KTP (1000 x 630 px)
         dst = np.array([
             [0, 0],
             [999, 0],
@@ -148,22 +187,29 @@ def perspective_transform_ktp(image: np.ndarray) -> np.ndarray:
         warped = cv2.warpPerspective(image, M, (1000, 630))
         return warped
     except Exception as e:
-        print(f"[PREPROCESSING WARP ERROR]: {e}")
+        print(f"[WARP FALLBACK]: Gagal meluruskan gambar ({e}), menggunakan gambar asli.")
         return image
 
-def remove_ktp_background(image: np.ndarray) -> np.ndarray:
+def reduce_glare_and_enhance(image: np.ndarray) -> np.ndarray:
     """
-    Menyamarkan corak/ombak pada background KTP dan mempertajam tulisan
-    sekelas pemrosesan OCR pada sistem Bank.
+    Mengurangi efek bayangan/glare dengan Adaptive CLAHE + Soft Sharpening
+    agar teks KTP tetap jelas terbaca oleh OCR.
     """
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
-    clahe = cv2.createCLAHE(clipLimit=2.5, tileGridSize=(8,8))
-    enhanced = clahe.apply(gray)
-    kernel = np.array([[-1, -1, -1], 
-                       [-1,  9, -1], 
-                       [-1, -1, -1]])
-    sharpened = cv2.filter2D(enhanced, -1, kernel)
-    return cv2.cvtColor(sharpened, cv2.COLOR_GRAY2BGR)
+    try:
+        # Konversi ke YUV / LAB untuk memproses pencahayaan tanpa merusak warna
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # Terapkan CLAHE pada channel Luminance (L)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        cl = clahe.apply(l)
+        
+        limg = cv2.merge((cl, a, b))
+        enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
+        return enhanced
+    except Exception as e:
+        print(f"[GLARE REDUCE ERROR]: {e}")
+        return image
 
 def crop_ktp_with_yolo(image: np.ndarray) -> np.ndarray:
     """
@@ -240,5 +286,10 @@ def preprocess_pipeline(image_path: str) -> Optional[np.ndarray]:
     # 2. Mata Elang YOLOv8 (Jika file model ada)
     roi_image = crop_ktp_with_yolo(image)
     
-    # KEMBALIKAN GAMBAR (Bypass Warping & Sharpening sementara karena menyebabkan OCR gagal total)
-    return roi_image
+    # 3. Perspective Transformation (Auto-Warp 4 sudut dengan Fallback Aman)
+    warped_image = perspective_transform_ktp(roi_image)
+    
+    # 4. Filter Penjernih Glare & Bayangan Lampu (Adaptive LAB CLAHE)
+    final_image = reduce_glare_and_enhance(warped_image)
+    
+    return final_image
