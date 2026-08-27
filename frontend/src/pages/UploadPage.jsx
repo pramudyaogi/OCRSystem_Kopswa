@@ -101,12 +101,74 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
     return () => stopCamera();
   }, []);
 
+  const compressImageIfNeeded = (inputFile) => {
+    return new Promise((resolve) => {
+      if (!inputFile || inputFile.type === 'application/pdf' || inputFile.size < 400 * 1024) {
+        resolve(inputFile);
+        return;
+      }
+      
+      const img = new Image();
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        img.src = e.target.result;
+      };
+      
+      img.onload = () => {
+        const maxDim = 1600;
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              resolve(inputFile);
+              return;
+            }
+            const compressedFile = new File([blob], inputFile.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve(compressedFile);
+          },
+          'image/jpeg',
+          0.82
+        );
+      };
+      
+      img.onerror = () => resolve(inputFile);
+      reader.onerror = () => resolve(inputFile);
+      
+      reader.readAsDataURL(inputFile);
+    });
+  };
+
   const handleUpload = async () => {
     if (!file) return alert("Harap tangkap foto atau pilih file dokumen terlebih dahulu!");
     setLoading(true);
     
+    // Auto-compress large mobile camera photos before upload (10MB -> ~200KB)
+    const fileToUpload = await compressImageIfNeeded(file);
+
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append("file", fileToUpload);
     formData.append("template", template);
 
     try {
