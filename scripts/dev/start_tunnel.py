@@ -5,8 +5,7 @@ import os
 
 def main():
     print("Launching Serveo SSH Tunnel for FastAPI Backend (port 8001)...")
-    subdomain = "kopswa-ocr-api"
-    cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=15", "-R", f"{subdomain}:80:127.0.0.1:8001", "serveo.net"]
+    cmd = ["ssh", "-o", "StrictHostKeyChecking=no", "-o", "ServerAliveInterval=15", "-R", "80:127.0.0.1:8001", "serveo.net"]
     
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     
