@@ -218,7 +218,7 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
           imagePreview: previewUrl
         });
       } catch (extractErr) {
-        throw new Error("Extract Fetch Error pada URL (" + url + "): " + (extractErr.message || extractErr.toString()));
+        throw new Error("Extract Fetch Error pada URL (" + extractEndpoint + "): " + (extractErr.message || extractErr.toString()));
       }
     } catch (e) {
       console.error("Kesalahan jaringan:", e);
