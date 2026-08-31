@@ -2,10 +2,10 @@ import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from app.config import UPLOAD_DIR, BASE_DIR
-from app.core.preprocessing import preprocess_pipeline
-from app.core.template_matching import load_template_config, crop_fields_by_template
-from app.core.ocr_engine import process_cropped_fields
-from app.core.postprocessing import postprocess_extracted_data, convert_numpy_types
+from app.core.preprocessing.preprocessing import preprocess_pipeline
+from app.core.matching.template_matching import load_template_config, crop_fields_by_template
+from app.core.ocr.ocr_engine import process_cropped_fields
+from app.core.matching.postprocessing import postprocess_extracted_data, convert_numpy_types
 
 router = APIRouter()
 
@@ -34,8 +34,8 @@ async def extract_document_data(filename: str, template_type: str = "ktp"):
             return JSONResponse(status_code=400, content={"detail": "Gagal memproses gambar. Format file gambar tidak valid atau rusak."})
              
         # 3. Jalankan AI (PaddleOCR untuk KTP, TrOCR untuk Tulisan Tangan)
-        from app.core.ocr_engine import extract_full_text
-        from app.core.template_matching import extract_ktp_data_smart
+        from app.core.ocr.ocr_engine import extract_full_text
+        from app.core.matching.template_matching import extract_ktp_data_smart
         
         use_trocr = (template_type == "form_pendaftaran")
         full_text_blocks = extract_full_text(processed_img, use_trocr=use_trocr)

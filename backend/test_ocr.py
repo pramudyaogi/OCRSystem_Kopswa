@@ -5,7 +5,7 @@ os.environ["FLAGS_use_onednn"] = "0"
 import numpy as np
 import cv2
 import traceback
-from app.core.ocr_engine import extract_text_from_crop
+from app.core.ocr.ocr_engine import extract_text_from_crop
 
 print("Testing direct OCR with MKLDNN disabled...")
 dummy_img = np.zeros((800, 600, 3), dtype=np.uint8)

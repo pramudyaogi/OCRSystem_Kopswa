@@ -127,6 +127,22 @@ def generate_document_pdf(doc, pdf_output_path):
     # 3. Foto KTP Tersemat
     fn = (doc.filename or "").replace("uploads/", "").replace("uploads\\", "")
     img_path = os.path.join(UPLOAD_DIR, fn)
+    temp_downloaded_img = None
+    
+    # If local file does not exist but fn is a URL, download temporarily
+    if not os.path.exists(img_path) and (fn.startswith("http://") or fn.startswith("https://")):
+        try:
+            import urllib.request
+            import tempfile
+            ext = os.path.splitext(fn)[1] or ".jpg"
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+            temp_file.close()
+            urllib.request.urlretrieve(fn, temp_file.name)
+            img_path = temp_file.name
+            temp_downloaded_img = temp_file.name
+        except Exception as dl_err:
+            print(f"Warning: Failed downloading remote image for PDF: {dl_err}")
+
     if os.path.exists(img_path):
         try:
             story.append(Paragraph("LAMPIRAN FOTO FISIK KTP:", cell_label_style))
@@ -142,7 +158,6 @@ def generate_document_pdf(doc, pdf_output_path):
                     if orig_w > 0:
                         aspect = orig_h / float(orig_w)
                         target_height = target_width * aspect
-                        # Limit max height to fit on single page neatly
                         if target_height > 4.5 * inch:
                             target_height = 4.5 * inch
                             target_width = target_height / aspect
@@ -157,6 +172,14 @@ def generate_document_pdf(doc, pdf_output_path):
 
     # Build PDF
     doc_pdf.build(story)
+
+    # Cleanup temp downloaded image if created
+    if temp_downloaded_img and os.path.exists(temp_downloaded_img):
+        try:
+            os.remove(temp_downloaded_img)
+        except Exception:
+            pass
+
     return pdf_output_path
 
 
@@ -170,6 +193,7 @@ def send_documents_via_email(target_email: str, doc_records: list):
 
     # Sanitasi password app dari spasi
     app_pwd = EMAIL_APP_PASSWORD.replace(" ", "")
+    temp_files_to_cleanup = []
 
     try:
         # Menyiapkan Pesan Email (MIMEMultipart)
@@ -178,10 +202,8 @@ def send_documents_via_email(target_email: str, doc_records: list):
         msg['To'] = target_email
 
         count = len(doc_records)
-        # Tanggal Kirim
         now_str = datetime.now().strftime("%d %B %Y, %H:%M WIB")
 
-        # Subject Email (single assignment)
         if count == 1:
             doc = doc_records[0]
             extracted = doc.extracted_data or {}
@@ -190,12 +212,10 @@ def send_documents_via_email(target_email: str, doc_records: list):
         else:
             msg['Subject'] = f"[Laporan Verifikasi Dokumen] Ringkasan {count} Dokumen Terverifikasi"
 
-        # Construct Table Rows
         table_rows_html = ""
         for idx, doc in enumerate(doc_records, start=1):
             extracted = doc.extracted_data or {}
             
-            # 1. Jenis Dokumen
             tt = (doc.template_type or "KTP").lower()
             if "ktp" in tt:
                 jenis_doc = "KTP Indonesia"
@@ -204,7 +224,6 @@ def send_documents_via_email(target_email: str, doc_records: list):
             else:
                 jenis_doc = doc.template_type.replace("_", " ").title()
 
-            # 2. Nama / Identitas Utama
             nama_val = "-"
             if isinstance(extracted.get("nama"), dict):
                 nama_val = extracted.get("nama", {}).get("value", "-")
@@ -216,7 +235,6 @@ def send_documents_via_email(target_email: str, doc_records: list):
             if not nama_val or nama_val.strip() in ["", "-"]:
                 nama_val = f"Dokumen #{doc.id}"
 
-            # Truncate if long
             if len(nama_val) > 32:
                 nama_display = nama_val[:30] + "..."
             else:
@@ -240,7 +258,6 @@ def send_documents_via_email(target_email: str, doc_records: list):
             </p>
             """
 
-        # Body Email HTML Sesuai Spesifikasi Ringkasan Tabel
         html_body = f"""
         <html>
           <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #1e293b; line-height: 1.6; background-color: #f1f5f9; padding: 24px;">
@@ -290,8 +307,6 @@ def send_documents_via_email(target_email: str, doc_records: list):
 
         msg.attach(MIMEText(html_body, 'html'))
 
-        temp_pdf_files = []
-
         for idx, doc in enumerate(doc_records, start=1):
             extracted = doc.extracted_data or {}
             nik = extracted.get("nik", {}).get("value", "") if isinstance(extracted.get("nik"), dict) else ""
@@ -300,9 +315,8 @@ def send_documents_via_email(target_email: str, doc_records: list):
             temp_pdf_path = os.path.join(UPLOAD_DIR, f"Report_KTP_{doc.id}_{nik}.pdf")
             try:
                 generate_document_pdf(doc, temp_pdf_path)
-                temp_pdf_files.append(temp_pdf_path)
+                temp_files_to_cleanup.append(temp_pdf_path)
 
-                # Attach PDF to email
                 with open(temp_pdf_path, "rb") as f:
                     mime_pdf = MIMEBase("application", "pdf")
                     mime_pdf.set_payload(f.read())
@@ -315,6 +329,22 @@ def send_documents_via_email(target_email: str, doc_records: list):
             # Attach Original KTP Image File
             fn = (doc.filename or "").replace("uploads/", "").replace("uploads\\", "")
             img_path = os.path.join(UPLOAD_DIR, fn)
+            local_temp_img = None
+
+            if not os.path.exists(img_path) and (fn.startswith("http://") or fn.startswith("https://")):
+                try:
+                    import urllib.request
+                    import tempfile
+                    ext = os.path.splitext(fn)[1] or ".jpg"
+                    t_file = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+                    t_file.close()
+                    urllib.request.urlretrieve(fn, t_file.name)
+                    img_path = t_file.name
+                    local_temp_img = t_file.name
+                    temp_files_to_cleanup.append(local_temp_img)
+                except Exception as dl_img_err:
+                    print(f"Warning downloading image for email attachment: {dl_img_err}")
+
             if os.path.exists(img_path):
                 try:
                     with open(img_path, "rb") as f:
@@ -334,16 +364,17 @@ def send_documents_via_email(target_email: str, doc_records: list):
         server.send_message(msg)
         server.quit()
 
-        # Clean up temp PDF files
-        for pdf_p in temp_pdf_files:
-            if os.path.exists(pdf_p):
-                try:
-                    os.remove(pdf_p)
-                except Exception:
-                    pass
-
         return True, "Email berhasil dikirim."
 
     except Exception as e:
         print(f"SMTP Error: {e}")
         return False, f"Gagal mengirim email: {str(e)}"
+    finally:
+        # Guarantees cleanup of all temporary PDF and downloaded image files
+        for tmp_f in temp_files_to_cleanup:
+            if os.path.exists(tmp_f):
+                try:
+                    os.remove(tmp_f)
+                except Exception as c_err:
+                    print(f"Warning cleaning up temp file {tmp_f}: {c_err}")
+

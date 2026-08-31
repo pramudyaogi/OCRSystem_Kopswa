@@ -13,3 +13,5 @@ pdf2image
 pillow
 pandas
 openpyxl
+supabase
+rapidfuzz

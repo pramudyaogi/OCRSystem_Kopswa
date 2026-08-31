@@ -10,10 +10,10 @@ if hasattr(sys.stdout, 'reconfigure'):
 # Add app to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.core.preprocessing import preprocess_pipeline
-from app.core.ocr_engine import extract_full_text
-from app.core.template_matching import load_template_config, extract_ktp_data_smart
-from app.core.postprocessing import postprocess_extracted_data
+from app.core.preprocessing.preprocessing import preprocess_pipeline
+from app.core.ocr.ocr_engine import extract_full_text
+from app.core.matching.template_matching import load_template_config, extract_ktp_data_smart
+from app.core.matching.postprocessing import postprocess_extracted_data
 
 def string_similarity(a: str, b: str) -> float:
     """Hitung persentase kemiripan teks (0.00 hingga 1.00)"""

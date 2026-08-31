@@ -46,6 +46,9 @@ backend/storage/uploads/*
 !backend/storage/uploads/.gitkeep
 backend/storage/processed/*
 !backend/storage/processed/.gitkeep
+backend/storage/debug/*
+!backend/storage/debug/.gitkeep
+backend/app/storage/
 
 # 6. Sensitive Environment Files
 .env
