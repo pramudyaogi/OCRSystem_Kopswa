@@ -2,12 +2,12 @@ import time
 from pyngrok import ngrok
 
 AUTH_TOKEN = "2xPVx5ZFeOjg2WfJtbD6dCCpsXw_4VzNUiuwAdr8jqJdpLvBJ"
-PORT = 8002
+PORT = 8001
 
 def main():
     print("Connecting to Ngrok...")
     ngrok.set_auth_token(AUTH_TOKEN)
-    tunnel = ngrok.connect(PORT)
+    tunnel = ngrok.connect(PORT, domain="beatriz-inattentive-malcolm.ngrok-free.app")
     print("\n" + "="*50)
     print(f"🎉 NGROK TUNNEL READY!")
     print(f"📌 Public URL: {tunnel.public_url}")
