@@ -14,12 +14,13 @@ export const getApiUrl = (path) => {
 };
 
 /**
- * Wrapper fetch yang otomatis menambahkan header 'Bypass-Tunnel-Reminder'
+ * Wrapper fetch yang otomatis menambahkan header bypass tunnel
  */
 export const apiFetch = (path, options = {}) => {
   const url = getApiUrl(path);
   const headers = {
     'Bypass-Tunnel-Reminder': 'true',
+    'ngrok-skip-browser-warning': 'true',
     ...(options.headers || {})
   };
   return fetch(url, { ...options, headers });
