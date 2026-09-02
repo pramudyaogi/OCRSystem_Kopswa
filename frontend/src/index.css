@@ -584,6 +584,7 @@ body {
     display: grid !important;
     grid-template-columns: 1fr 1fr !important;
     gap: 1.15rem 1.25rem !important;
+    align-items: start !important;
   }
 
   .field-item-full {

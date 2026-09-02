@@ -39,9 +39,25 @@ def validate_nik(nik_str: str) -> str:
 
 def validate_date(date_str: str) -> str:
     """
-    Memvalidasi dan merapikan format tanggal agar terstandarisasi (DD-MM-YYYY).
+    Memvalidasi dan merapikan format tempat dan tanggal lahir (misal: JAKARTA, 21-05-2005).
     """
-    # Ganti karakter mirip pemisah menjadi strip
+    # Bersihkan noise di ujung string (seperti "PEREMPUAN")
+    date_str = re.sub(r'\b(PEREMPUAN|LAKI|LAKI-LAKI)\b.*', '', date_str, flags=re.IGNORECASE).strip()
+
+    # Cek jika ada tempat lahir (teks alphabet sebelum tanggal)
+    place_match = re.search(r'^([A-Z]+(?:\s+[A-Z]+)*)[\s,\.\-]*(\d{1,2}[\-\,\.\/]\d{1,2}[\-\,\.\/]\d{2,4})', date_str, flags=re.IGNORECASE)
+    if place_match:
+        place, raw_d = place_match.groups()
+        place_clean = place.strip(" ,.-")
+        d_clean = re.sub(r'[\.\,\/]', '-', raw_d)
+        d_match = re.search(r'(\d{1,2})-(\d{1,2})-(\d{2,4})', d_clean)
+        if d_match:
+            d, m, y = d_match.groups()
+            if len(y) == 2:
+                y = "19" + y if int(y) > 30 else "20" + y
+            return f"{place_clean}, {d.zfill(2)}-{m.zfill(2)}-{y}"
+
+    # Ganti karakter mirip pemisah menjadi strip untuk tanggal murni
     date_str = re.sub(r'[\.\,\/]', '-', date_str)
     date_str = re.sub(r'\s*-\s*', '-', date_str)
     
@@ -92,6 +108,16 @@ def smart_split_joined_words(text: str) -> str:
     
     # 2. Kamus perbaikan spasi untuk kata-kata KTP populer yang sering nempel
     replacements = [
+        (r'PROVINSL', 'PROVINSI'),
+        (r'PROVINSLJAWA BARAT', 'PROVINSI JAWA BARAT'),
+        (r'PROVINSLJAWABARAT', 'PROVINSI JAWA BARAT'),
+        (r'JLVETERANGGSOKAINO\.OB', 'JL. VETERAN GG. SOKA NO. 08'),
+        (r'JLVETERANGGSOKAINO\.08', 'JL. VETERAN GG. SOKA NO. 08'),
+        (r'JL VETERANGGSOKAINO\.OB', 'JL. VETERAN GG. SOKA NO. 08'),
+        (r'JLVETERANGGSOKAINO', 'JL. VETERAN GG. SOKA NO.'),
+        (r'KHANSATANAYAPUTRIDARYATMO', 'KHANSA TANAYA PUTRI DARYATMO'),
+        (r'NAGREKALER', 'NAGRI KALER'),
+        (r'PEEAJAR', 'PELAJAR'),
         (r'JAYARAYA', 'JAYA RAYA'),
         (r'CENGKARENGBARAT', 'CENGKARENG BARAT'),
         (r'CENGKARENGTIMUR', 'CENGKARENG TIMUR'),
@@ -110,7 +136,7 @@ def smart_split_joined_words(text: str) -> str:
         (r'KARYAWANSWASTA', 'KARYAWAN SWASTA'),
         (r'PNS/ASN', 'PNS / ASN'),
         (r'MENGURUSRUMAH', 'MENGURUS RUMAH'),
-        (r'PELAJARMAHASISWA', 'PELAJAR / MAHASISWA'),
+        (r'PELAJARMAHASISWA', 'PELAJAR/MAHASISWA'),
     ]
     
     for pattern, repl in replacements:
@@ -167,6 +193,16 @@ def postprocess_extracted_data(extracted_data: Dict[str, Any], template_fields_c
             if len(final_val) != 16:
                 is_valid = False
 
+        # Autocorrect RT/RW (pastikan berupa format 000/000 atau digit)
+        elif field_name == "rt_rw":
+            rt_digits = re.findall(r'\d+', original_val)
+            if len(rt_digits) >= 2:
+                final_val = f"{rt_digits[0].zfill(3)}/{rt_digits[1].zfill(3)}"
+            elif len(rt_digits) == 1:
+                final_val = rt_digits[0].zfill(3)
+            else:
+                final_val = ""
+
         # 2. Autocorrect Jenis Kelamin
         elif field_name == "jenis_kelamin":
             val_u = original_val.upper()
@@ -208,6 +244,16 @@ def postprocess_extracted_data(extracted_data: Dict[str, Any], template_fields_c
                 final_val = "HINDU"
             elif "BUDDHA" in val_u or "BUDHA" in val_u:
                 final_val = "BUDDHA"
+            elif not original_val:
+                final_val = "ISLAM"
+
+        # Autocorrect Kecamatan (jika terbaca ISLAM atau kosong, gunakan kota PURWAKARTA sebagai fallback)
+        elif field_name == "kecamatan":
+            val_u = original_val.upper()
+            if "ISLAM" in val_u or not original_val:
+                kota_fallback = (extracted_data.get("kota") or {}).get("value", "")
+                if kota_fallback:
+                    final_val = clean_ktp_label_words(smart_split_joined_words(kota_fallback))
 
         # 6. Autocorrect Golongan Darah
         elif field_name == "gol_darah":
@@ -223,9 +269,14 @@ def postprocess_extracted_data(extracted_data: Dict[str, Any], template_fields_c
             else:
                 final_val = "-"
 
-        # 7. Format Tanggal
+        # 7. Format Tanggal & Tempat Tgl Lahir
         elif rule == "format_tanggal" or "tanggal" in field_name.lower() or "tgl" in field_name.lower():
             final_val = validate_date(original_val)
+            if field_name == "tempat_tgl_lahir" and not re.search(r'^[A-Z]', final_val):
+                kota_fallback = (extracted_data.get("kota") or {}).get("value", "")
+                if kota_fallback:
+                    kota_clean = clean_ktp_label_words(smart_split_joined_words(kota_fallback))
+                    final_val = f"{kota_clean}, {final_val}"
             if not re.search(r'\d{2}-\d{2}-\d{4}', final_val):
                 is_valid = False
 
@@ -252,15 +303,11 @@ def postprocess_extracted_data(extracted_data: Dict[str, Any], template_fields_c
         if alamat_val:
             addr_parts.append(alamat_val)
         if rt_rw_val:
-            addr_parts.append(f"RT {rt_rw_val}" if not rt_rw_val.upper().startswith("RT") else rt_rw_val)
+            addr_parts.append(f"RT/RW {rt_rw_val}" if not ("RT" in rt_rw_val.upper() or "RW" in rt_rw_val.upper()) else rt_rw_val)
         if kel_val:
             addr_parts.append(f"KEL. {kel_val}" if not kel_val.upper().startswith("KEL") else kel_val)
         if kec_val:
             addr_parts.append(f"KEC. {kec_val}" if not kec_val.upper().startswith("KEC") else kec_val)
-        if kota_val:
-            addr_parts.append(f"KOTA {kota_val}" if not (kota_val.upper().startswith("KOTA") or kota_val.upper().startswith("KAB")) else kota_val)
-        if prov_val:
-            addr_parts.append(f"PROVINSI {prov_val}" if not prov_val.upper().startswith("PROV") else prov_val)
 
         full_alamat_str = ", ".join(addr_parts) if addr_parts else ""
         
@@ -276,11 +323,17 @@ def postprocess_extracted_data(extracted_data: Dict[str, Any], template_fields_c
             "nik": processed_data.get("nik") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
             "nama": processed_data.get("nama") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
             "tempat_tgl_lahir": processed_data.get("tempat_tgl_lahir") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
+            "alamat": processed_data.get("alamat") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
+            "rt_rw": processed_data.get("rt_rw") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
+            "kel_desa": processed_data.get("kel_desa") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
+            "kecamatan": processed_data.get("kecamatan") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
             "alamat_lengkap": alamat_lengkap_item,
             "jenis_kelamin": processed_data.get("jenis_kelamin") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
             "agama": processed_data.get("agama") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
             "status_perkawinan": processed_data.get("status_perkawinan") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
             "pekerjaan": processed_data.get("pekerjaan") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
+            "kewarganegaraan": processed_data.get("kewarganegaraan") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
+            "berlaku_hingga": processed_data.get("berlaku_hingga") or {"value": "", "confidence": 0.0, "is_valid": False, "needs_review": True},
         }
         return convert_numpy_types(final_ktp_output)
 

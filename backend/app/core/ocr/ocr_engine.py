@@ -69,6 +69,64 @@ def extract_text_from_crop(image: np.ndarray) -> Dict[str, Any]:
 from app.core.ocr.handwriting_ocr import handwriting_engine
 import cv2
 
+def reprocess_nik_roi(image: np.ndarray, nik_bbox: list = None) -> str:
+    """
+    Dedicated NIK ROI Crop & Reprocessing (Sesuai rekomendasi ahli Poin 2):
+    1. Ambil ROI khusus NIK (diperluas 10px margin).
+    2. Upscale 2.5x dengan cv2.INTER_CUBIC.
+    3. Adaptive thresholding & sharpening untuk memperjelas batas digit angka NIK.
+    4. Pass ke PaddleOCR khusus ROI untuk mendapatkan NIK murni 16 digit.
+    """
+    try:
+        h, w = image.shape[:2]
+        if nik_bbox:
+            xs = [pt[0] for pt in nik_bbox]
+            ys = [pt[1] for pt in nik_bbox]
+            y1 = max(0, int(min(ys)) - 10)
+            y2 = min(h, int(max(ys)) + 10)
+            x1 = max(0, int(min(xs)) - 15)
+            x2 = min(w, int(max(xs)) + 15)
+        else:
+            # Fallback ROI area NIK standar KTP (Y: 15%-32%, X: 15%-88%)
+            y1 = int(h * 0.15)
+            y2 = int(h * 0.32)
+            x1 = int(w * 0.15)
+            x2 = int(w * 0.88)
+
+        roi = image[y1:y2, x1:x2]
+        if roi.size == 0 or roi.shape[0] < 10 or roi.shape[1] < 10:
+            return ""
+
+        # Upscale 2.5x INTER_CUBIC
+        roi_scaled = cv2.resize(roi, (0, 0), fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+
+        # Preprocessing khusus ROI NIK (Adaptive Thresholding + Sharpening)
+        gray = cv2.cvtColor(roi_scaled, cv2.COLOR_BGR2GRAY)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
+        enhanced = clahe.apply(gray)
+        blur = cv2.GaussianBlur(enhanced, (0, 0), 1.5)
+        sharp = cv2.addWeighted(enhanced, 1.5, blur, -0.5, 0)
+
+        # Convert back to BGR for PaddleOCR
+        roi_final = cv2.cvtColor(sharp, cv2.COLOR_GRAY2BGR)
+
+        result = ocr_model.ocr(roi_final)
+        lines = _normalize_ocr_lines(result)
+
+        import re
+        for line in lines:
+            txt = line[1][0] if isinstance(line, (tuple, list)) and len(line) > 1 and isinstance(line[1], (tuple, list)) else ""
+            digits = re.sub(r'\D', '', txt)
+            if len(digits) >= 14:
+                # Koreksi OCR typo umum pada digit NIK
+                digits = digits.replace('b', '6').replace('o', '0').replace('O', '0').replace('I', '1').replace('l', '1')
+                return digits
+
+    except Exception as e:
+        print(f"[NIK REPROCESS ERROR]: {e}")
+
+    return ""
+
 def extract_full_text(image: np.ndarray, use_trocr: bool = False) -> list:
     """
     Menjalankan OCR di seluruh gambar utuh dan mengembalikan daftar blok teks 
@@ -107,6 +165,22 @@ def extract_full_text(image: np.ndarray, use_trocr: bool = False) -> list:
             "confidence": float(conf),
             "bbox": coords
         })
+
+    # Poin 2: Cek NIK 16 digit — Jika NIK awal terdeteksi < 16 digit, jalankan reprocess_nik_roi
+    import re
+    nik_block = None
+    for b in blocks:
+        digits = re.sub(r'\D', '', b["text"])
+        if 13 <= len(digits) < 16 and ("NIK" in b["text"].upper() or len(digits) >= 14):
+            nik_block = b
+            break
+
+    if nik_block:
+        better_nik = reprocess_nik_roi(image, nik_block["bbox"])
+        if len(better_nik) >= 15: # Dapatkan versi 15/16 digit yang lebih utuh
+            nik_block["text"] = f"NIK : {better_nik}"
+            nik_block["confidence"] = 0.95
+
     return blocks
 
 def process_cropped_fields(cropped_images_dict: Dict[str, np.ndarray]) -> Dict[str, Dict[str, Any]]:

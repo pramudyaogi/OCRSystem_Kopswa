@@ -47,8 +47,8 @@ def crop_fields_by_template(image: np.ndarray, template_config: dict) -> Dict[st
 
 def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str, Dict[str, Any]]:
     """
-    Ekstraksi data KTP secara Cerdas menggunakan Spatial Alignment (Pencocokan Koordinat X,Y).
-    Mengabaikan seluruh teks label dan hanya mengambil nilai asli di sebelah kanan label.
+    Ekstraksi data KTP Cerdas berbasis Y-Overlap, Fuzzy Label Anchors, 
+    dan Bounded Fallback Spatial Zone.
     """
     all_ktp_keys = [
         "provinsi", "kota", "nik", "nama", "tempat_tgl_lahir", "jenis_kelamin", 
@@ -60,116 +60,149 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
     import re
     from rapidfuzz import fuzz
 
-    # Kata kunci yang tergolong Label KTP (bukan nilai data)
+    # List label standar KTP
     ALL_LABELS = [
         "PROVINSI", "KABUPATEN", "KOTA", "NIK", "NAMA", "TEMPAT", "TGL", "LAHIR",
         "JENIS", "KELAMIN", "GOL", "DARAH", "ALAMAT", "RT/RW", "RT/", "/RW",
-        "KEL/DESA", "KELURAHAN", "KECAMATAN", "AGAMA", "STATUS", "PERKAWINAN",
+        "KEL/DESA", "KELURAHAN", "KECAMATAN", "KEC", "AGAMA", "STATUS", "PERKAWINAN",
         "PEKERJAAN", "KEWARGANEGARAAN", "BERLAKU", "HINGGA"
     ]
 
-    # Label gabungan (multi-kata) yang sering melebur saat OCR salah baca
     MULTI_WORD_LABELS = [
         "JENIS KELAMIN", "GOL DARAH", "KEL DESA", "STATUS PERKAWINAN",
-        "BERLAKU HINGGA", "TEMPAT TGL LAHIR", "RT RW", "TEMPAT LAHIR"
+        "BERLAKU HINGGA", "TEMPAT TGL LAHIR", "RT RW", "TEMPAT LAHIR", "KEWARGANEGARAAN"
     ]
 
     def is_label_text(text: str) -> bool:
         txt_u = text.upper().strip()
 
-        # Jika teksnya murni 16 digit angka NIK, itu BUKAN label
+        # NIK 16-digit angka -> BUKAN label
         digits = re.sub(r'\D', '', txt_u)
-        if len(digits) >= 14:
+        if len(digits) >= 13:
             return False
 
-        # Jika pendek tapi angka saja (misal RT/RW 008/009), bukan label
+        # Format RT/RW angka -> BUKAN label
         if re.match(r'^\d{1,3}[/\-]\d{1,3}$', txt_u):
             return False
 
-        # Jika teks mengandung nama tempat/daerah khas KTP, itu BUKAN label murni
+        # Kota / Provinsi / Lokasi -> BUKAN label murni
         if any(place in txt_u for place in [
             "JAKARTA", "BARAT", "TIMUR", "SELATAN", "UTARA", "PUSAT",
             "JAWA", "SUMATERA", "BALI", "SULAWESI", "KALIMANTAN",
             "BANDUNG", "SURABAYA", "MEDAN", "ADM.", "CENGKARENG",
-            "TANGERANG", "BEKASI", "DEPOK", "BOGOR"
+            "PURWAKARTA", "TANGERANG", "BEKASI", "DEPOK", "BOGOR",
+            "NAGREKALER", "NAGRI", "VETERAN", "SOKA"
         ]):
             return False
 
-        # ── EXACT match: label ada persis di dalam teks ──
-        if any(lbl in txt_u for lbl in ALL_LABELS):
-            return True
+        # Jika mengandung kata watermark KTP / value murni, ini BUKAN label murni
+        if any(v in txt_u for v in ["ISLAM", "KRISTEN", "KATHOLIK", "HINDU", "BUDDHA", "BELUM", "KAWIN", "PELAJAR", "MAHASISWA", "WNI", "WNA", "SEUMUR", "JAYA RAYA", "LJAYARAYA", "JAKARTA BARAT"]):
+            return False
 
-        # ── FUZZY match: tangkap label yang salah baca OCR ──
-        # Contoh: "JERISKEIAMIN" ≈ "JENIS KELAMIN" (score ~80)
-        # Hanya aktif untuk teks yang panjangnya 4-20 karakter (cukup pendek = kemungkinan label)
-        if 4 <= len(txt_u) <= 22:
+        # Exact match label (harus ber-boundary kata murni)
+        for lbl in ALL_LABELS:
+            if re.search(r'\b' + re.escape(lbl) + r'\b', txt_u):
+                return True
+
+        # Fuzzy match label
+        if 4 <= len(txt_u) <= 24:
             for lbl in MULTI_WORD_LABELS:
-                if fuzz.partial_ratio(txt_u, lbl) >= 72:
+                if fuzz.ratio(txt_u, lbl) >= 75:
                     return True
             for lbl in ALL_LABELS:
-                if len(lbl) >= 5 and fuzz.ratio(txt_u, lbl) >= 75:
+                if len(lbl) >= 4 and fuzz.ratio(txt_u, lbl) >= 78:
                     return True
 
         return False
 
-    # 1. Ekstrak koordinat tengah (center_x, center_y) untuk tiap blok
+    def strip_known_labels(text: str, keywords: list) -> str:
+        """Menghapus label dari teks, baik exact regex maupun fuzzy match."""
+        txt = text.strip()
+        for kw in keywords:
+            pattern = re.compile(re.escape(kw), re.IGNORECASE)
+            txt = pattern.sub("", txt).strip(" :-")
+        
+        # Fuzzy strip kata pertama jika merupakan typo dari label
+        words = txt.split()
+        if words and len(words[0]) >= 3:
+            for kw in keywords:
+                if fuzz.ratio(words[0].upper(), kw.upper()) >= 70:
+                    words = words[1:]
+                    break
+            txt = " ".join(words).strip(" :-")
+        return txt
+
+    # 1. Parsing text blocks & hitung dimensi
     parsed_blocks = []
     for b in text_blocks:
         bbox = b["bbox"]
         xs = [pt[0] for pt in bbox]
         ys = [pt[1] for pt in bbox]
-        cx = sum(xs) / len(xs)
-        cy = sum(ys) / len(ys)
-        min_x = min(xs)
-        max_x = max(xs)
-        height = max(ys) - min(ys)  # Hitung tinggi teks sesungguhnya
+        min_y = min(ys)
+        max_y = max(ys)
         parsed_blocks.append({
             "text": b["text"],
             "confidence": b["confidence"],
-            "cx": cx,
-            "cy": cy,
-            "min_x": min_x,
-            "max_x": max_x,
-            "height": height,
+            "cx": sum(xs) / len(xs),
+            "cy": sum(ys) / len(ys),
+            "min_x": min(xs),
+            "max_x": max(xs),
+            "min_y": min_y,
+            "max_y": max_y,
+            "height": max(max_y - min_y, 1),
             "bbox": bbox
         })
 
-    # 2. Cari NIK berbasis RegEx 16 digit angka lebih dulu
+    # 2. Cari NIK via Regex lebih dulu
     for b in parsed_blocks:
         digits = re.sub(r'\D', '', b["text"])
-        if len(digits) >= 14: # Memenuhi kriteria NIK
+        if len(digits) >= 14:
             extracted["nik"] = {"value": digits, "confidence": b["confidence"]}
             break
 
-    # Ekstraksi Provinsi dan Kota awal (jika menyatu di 1 block)
+    # Ekstraksi Provinsi dan Kota (jika menyatu di 1 block)
     for b in parsed_blocks:
         txt_u = b["text"].upper()
         if "PROVINSI" in txt_u and not extracted.get("provinsi", {}).get("value"):
-            val = txt_u.replace("PROVINSI", "").strip(" :-")
+            val = strip_known_labels(txt_u, ["PROVINSI"])
             if val:
                 extracted["provinsi"] = {"value": val, "confidence": b["confidence"]}
         elif ("KABUPATEN" in txt_u or "KOTA" in txt_u) and not extracted.get("kota", {}).get("value"):
-            val = txt_u.replace("KABUPATEN", "").replace("KOTA", "").strip(" :-")
+            val = strip_known_labels(txt_u, ["KABUPATEN", "KOTA"])
             if val:
                 extracted["kota"] = {"value": val, "confidence": b["confidence"]}
 
-    # Helper untuk mencari nilai berdasarkan posisi relatif terhadap label
-    def find_field_spatial(keywords: list, field_key: str, is_below: bool = False, next_label_keywords: list = None):
-        # Jika nilai sudah terisi (misal NIK 16 digit yang sudah diparsing), jangan ditimpa lagi
+    # Helper Spatial Alignment berbasis Keyword Anchor Independen
+    def find_field_spatial(keywords: list, field_key: str, is_below: bool = False, next_label_keywords: list = None, ignore_gap: bool = False):
         if field_key in extracted and extracted[field_key].get("value"):
             return
 
         label_block = None
+        # 1. Cari Bbox Label (Exact / Word Boundary match)
         for b in parsed_blocks:
             txt_u = b["text"].upper()
-            if any(kw in txt_u for kw in keywords):
+            if any(re.search(r'\b' + re.escape(kw) + r'\b', txt_u) for kw in keywords):
                 label_block = b
                 break
-                
+
+        # 2. Fuzzy Match jika label terpotong atau typo berat OCR (misal "isEPeaawu", "PAKE:Ino", "Alama")
+        if not label_block:
+            for b in parsed_blocks:
+                txt_u = b["text"].upper()
+                words = txt_u.split()
+                for kw in keywords:
+                    for w in words:
+                        if len(w) >= 4 and (fuzz.ratio(w, kw) >= 75 or fuzz.partial_ratio(w, kw) >= 80):
+                            label_block = b
+                            break
+                    if label_block:
+                        break
+                if label_block:
+                    break
+
         if not label_block:
             return
 
-        # Cari label berikutnya untuk dijadikan boundary/batas kanan (misal GOL DARAH di kanan JENIS KELAMIN)
         next_label_block = None
         if next_label_keywords:
             for b in parsed_blocks:
@@ -178,139 +211,170 @@ def extract_ktp_data_smart(text_blocks: list, template_config: dict) -> Dict[str
                     next_label_block = b
                     break
 
-        # 1. Cek apakah PaddleOCR menggabungkan Label dan Nilai dalam satu kotak teks yang sama
-        txt = label_block["text"].upper()
-        for kw in keywords:
-            pattern = re.compile(re.escape(kw), re.IGNORECASE)
-            txt = pattern.sub("", txt).strip(" :-")
-            
-        if len(txt) > 2 and not is_label_text(txt):
-            extracted[field_key] = {"value": txt, "confidence": label_block["confidence"]}
-            return
+        # Cek jika label & value menyatu dalam 1 bbox
+        txt_stripped = strip_known_labels(label_block["text"], keywords)
+        val_triggers = ["BELUM", "KAWIN", "WNI", "WNL", "WNA", "SEUMUR", "LAKI", "PEREMPUAN", "ISLAM", "PELAJAR", "MAHASISWA"]
+        if ":" in label_block["text"] or any(val_kw in label_block["text"].upper() for val_kw in val_triggers):
+            if len(txt_stripped) >= 2 and not is_label_text(txt_stripped):
+                extracted[field_key] = {"value": txt_stripped, "confidence": label_block["confidence"], "block": label_block}
+                return
 
-        # 2. Jika tidak menyatu, cari kotak-kotak teks di sebelahnya atau di bawahnya
-        l_cy = label_block["cy"]
-        l_min_x = label_block["min_x"]
-        l_h = label_block["height"]  # Tinggi kotak teks label ini
+        l_min_y = label_block["min_y"]
+        l_max_y = label_block["max_y"]
+        l_h = label_block["height"]
 
         raw_candidates = []
+        claimed_blocks = []
+        for v in extracted.values():
+            if isinstance(v, dict):
+                if "block" in v:
+                    claimed_blocks.append(v["block"])
+                if "all_blocks" in v:
+                    claimed_blocks.extend(v["all_blocks"])
         for b in parsed_blocks:
-            if b == label_block:
+            if b == label_block or b in claimed_blocks:
                 continue
             if is_label_text(b["text"]):
                 continue
-                
-            y_diff = b["cy"] - l_cy
+            if any(wm in b["text"].upper() for wm in ["JAYA RAYA", "LJAYARAYA", "JAKARTA BARAT"]):
+                continue
+
+            # Value harus berada di area kanan dari label
+            is_right = (b["cx"] >= label_block["cx"]) or (b["min_x"] >= (label_block["max_x"] - 120))
             
-            # Toleransi spasial berbasis tinggi font
-            if is_below:
-                # Teks harus ada di bawah label (selisih Y positif) maksimal sejauh 3x tinggi font
-                is_valid_pos = (0 < y_diff < (l_h * 3.0))
-            else:
-                # Teks harus sejajar secara horizontal (Toleransi kemiringan Y maksimal 80% dari tinggi font)
-                is_valid_pos = (abs(y_diff) < (l_h * 0.8) and b["min_x"] >= (l_min_x - (l_h * 0.5)))
-                
-                # Boundary Check: Jika ada label berikutnya (seperti GOL DARAH), kotak tak boleh melewatinya
-                if is_valid_pos and next_label_block:
-                    if abs(next_label_block["cy"] - l_cy) < (l_h * 1.5):
-                        if b["min_x"] >= next_label_block["min_x"]:
-                            is_valid_pos = False
+            # Y-Overlap Ratio > 0.40 ATAU selisih Y-center sangat dekat (< 0.40 * l_h)
+            overlap_y = max(0, min(l_max_y, b["max_y"]) - max(l_min_y, b["min_y"]))
+            overlap_ratio = overlap_y / min(l_h, b["height"])
             
+            is_y_aligned = (overlap_ratio > 0.40 or abs(b["cy"] - label_block["cy"]) < (l_h * 0.40))
+            is_valid_pos = is_right and is_y_aligned
+            
+            # Jangan ambil jika candidate berada di sebelah kanan label berikutnya yang satu garis Y
+            if is_valid_pos and next_label_block:
+                # Hanya batasi jika next_label_block se-garis Y (misal GOL DARAH di kanan JENIS KELAMIN)
+                if abs(next_label_block["cy"] - label_block["cy"]) < (l_h * 0.8):
+                    if b["min_x"] >= (next_label_block["min_x"] - 5):
+                        is_valid_pos = False
+
             if is_valid_pos:
                 raw_candidates.append(b)
-                
+
         if not raw_candidates:
+            extracted[field_key] = {"value": "", "confidence": 0.0, "needs_review": True}
             return
 
-        # Urutkan kandidat dari kiri ke kanan (berdasarkan min_x)
         raw_candidates.sort(key=lambda b: b["min_x"])
-        
-        # Horizontal Line Grouping dengan Gap Threshold
+
+        # Grouping baris dengan Y-axis Overlap Ratio & Spasi
         grouped = [raw_candidates[0]]
         for box in raw_candidates[1:]:
             prev_box = grouped[-1]
             gap = box["min_x"] - prev_box["max_x"]
             avg_height = (box["height"] + prev_box["height"]) / 2.0
-            
-            # Jika selisih jarak horizontal (gap) lebih dari 3x tinggi huruf, jangan gabungkan
-            if gap > (avg_height * 3.0):
+
+            max_gap = (avg_height * 10.0) if ignore_gap else (avg_height * 4.5)
+            if gap > max_gap:
                 break
             grouped.append(box)
 
-        # Gabungkan teks dari seluruh kelompok kotak sebaris dengan spasi
+        # " ".join untuk SEMUA kata agar spasi tidak pernah hilang
         combined_text = " ".join([b["text"].upper() for b in grouped])
-        for kw in keywords:
-            pattern = re.compile(re.escape(kw), re.IGNORECASE)
-            combined_text = pattern.sub("", combined_text).strip(" :-")
-            
-        avg_conf = sum(b["confidence"] for b in grouped) / len(grouped)
-        extracted[field_key] = {"value": combined_text.strip(), "confidence": avg_conf}
+        combined_text = strip_known_labels(combined_text, keywords)
+        combined_text = re.sub(r'\s+', ' ', combined_text).strip()
 
-    # TAHAP 1: Relative Spatial Alignment berdasarkan Anchor Keyword Label (Prioritas Utama untuk HP)
-    find_field_spatial(["PROVINSI"], "provinsi")
-    find_field_spatial(["KABUPATEN", "KOTA"], "kota")
+        avg_conf = sum(b["confidence"] for b in grouped) / len(grouped)
+        if combined_text:
+            extracted[field_key] = {"value": combined_text, "confidence": avg_conf, "block": grouped[0], "all_blocks": grouped}
+        else:
+            extracted[field_key] = {"value": "", "confidence": 0.0, "needs_review": True}
+
+    # TAHAP 1: Keyword Anchoring Independen per Field (Top-to-Bottom)
     find_field_spatial(["NIK"], "nik")
     find_field_spatial(["NAMA"], "nama")
-    find_field_spatial(["TEMPAT", "LAHIR", "TGL"], "tempat_tgl_lahir")
+    find_field_spatial(["TEMPAT", "LAHIR", "TGL"], "tempat_tgl_lahir", next_label_keywords=["JENIS", "KELAMIN"], ignore_gap=True)
     find_field_spatial(["JENIS", "KELAMIN"], "jenis_kelamin", next_label_keywords=["GOL", "DARAH"])
     find_field_spatial(["GOL", "DARAH"], "gol_darah")
-    find_field_spatial(["ALAMAT"], "alamat")
-    find_field_spatial(["RT/RW", "RT/"], "rt_rw")
-    find_field_spatial(["KEL/DESA", "KELURAHAN"], "kel_desa")
-    find_field_spatial(["KECAMATAN"], "kecamatan")
-    find_field_spatial(["AGAMA"], "agama")
-    find_field_spatial(["STATUS", "PERKAWINAN"], "status_perkawinan")
-    find_field_spatial(["PEKERJAAN"], "pekerjaan")
-    find_field_spatial(["KEWARGANEGARAAN"], "kewarganegaraan")
+    find_field_spatial(["ALAMAT"], "alamat", next_label_keywords=["RT/RW"])
+    find_field_spatial(["RT/RW", "RT / RW"], "rt_rw", next_label_keywords=["KEL/DESA"])
+    find_field_spatial(["KEL/DESA", "KELURAHAN"], "kel_desa", next_label_keywords=["KECAMATAN"])
+    find_field_spatial(["KECAMATAN"], "kecamatan", next_label_keywords=["AGAMA"])
+    find_field_spatial(["AGAMA"], "agama", next_label_keywords=["STATUS", "PERKAWINAN"])
+    find_field_spatial(["STATUS", "PERKAWINAN"], "status_perkawinan", next_label_keywords=["PEKERJAAN"])
+    find_field_spatial(["PEKERJAAN"], "pekerjaan", next_label_keywords=["KEWARGANEGARAAN"])
+    find_field_spatial(["KEWARGANEGARAAN"], "kewarganegaraan", next_label_keywords=["BERLAKU", "HINGGA"])
     find_field_spatial(["BERLAKU", "HINGGA"], "berlaku_hingga")
 
-    # TAHAP 2: Fallback ke KTP_SPATIAL_ZONES untuk field yang belum terisi sama sekali
-    KTP_SPATIAL_ZONES = {
-        "provinsi": {"min_y": 0, "max_y": 70, "min_x": 120, "max_x": 880},
-        "kota": {"min_y": 40, "max_y": 120, "min_x": 120, "max_x": 880},
-        "nik": {"min_y": 110, "max_y": 200, "min_x": 180, "max_x": 880},
-        "nama": {"min_y": 185, "max_y": 255, "min_x": 200, "max_x": 920},
-        "tempat_tgl_lahir": {"min_y": 235, "max_y": 295, "min_x": 200, "max_x": 920},
-        "jenis_kelamin": {"min_y": 280, "max_y": 335, "min_x": 200, "max_x": 580},
-        "gol_darah": {"min_y": 280, "max_y": 335, "min_x": 580, "max_x": 950},
-        "alamat": {"min_y": 325, "max_y": 375, "min_x": 200, "max_x": 920},
-        "rt_rw": {"min_y": 365, "max_y": 415, "min_x": 200, "max_x": 920},
-        "kel_desa": {"min_y": 405, "max_y": 455, "min_x": 200, "max_x": 920},
-        "kecamatan": {"min_y": 445, "max_y": 495, "min_x": 200, "max_x": 920},
-        "agama": {"min_y": 485, "max_y": 535, "min_x": 200, "max_x": 920},
-        "status_perkawinan": {"min_y": 525, "max_y": 570, "min_x": 200, "max_x": 920},
-        "pekerjaan": {"min_y": 560, "max_y": 605, "min_x": 200, "max_x": 920},
-        "kewarganegaraan": {"min_y": 590, "max_y": 630, "min_x": 200, "max_x": 650},
-        "berlaku_hingga": {"min_y": 590, "max_y": 630, "min_x": 650, "max_x": 980}
+    # TAHAP 2: Isolated Fallback Spatial Zone (TIDAK menyerap data field lain!)
+    KTP_ISOLATED_ZONES_PCT = {
+        "nik":             {"min_y": 0.17, "max_y": 0.32, "min_x": 0.22, "max_x": 0.88},
+        "nama":            {"min_y": 0.29, "max_y": 0.40, "min_x": 0.22, "max_x": 0.92},
+        "tempat_tgl_lahir":{"min_y": 0.37, "max_y": 0.47, "min_x": 0.22, "max_x": 0.92},
+        "jenis_kelamin":   {"min_y": 0.44, "max_y": 0.54, "min_x": 0.22, "max_x": 0.55},
+        "alamat":          {"min_y": 0.51, "max_y": 0.60, "min_x": 0.22, "max_x": 0.92},
+        "rt_rw":           {"min_y": 0.58, "max_y": 0.66, "min_x": 0.22, "max_x": 0.92},
+        "kel_desa":        {"min_y": 0.64, "max_y": 0.72, "min_x": 0.22, "max_x": 0.92},
+        "kecamatan":       {"min_y": 0.70, "max_y": 0.79, "min_x": 0.22, "max_x": 0.92},
+        "agama":           {"min_y": 0.77, "max_y": 0.85, "min_x": 0.22, "max_x": 0.70},
+        "status_perkawinan":{"min_y": 0.83, "max_y": 0.91, "min_x": 0.22, "max_x": 0.92},
+        "pekerjaan":       {"min_y": 0.89, "max_y": 0.96, "min_x": 0.22, "max_x": 0.75},
+        "kewarganegaraan": {"min_y": 0.94, "max_y": 1.00, "min_x": 0.22, "max_x": 0.55},
+        "berlaku_hingga":  {"min_y": 0.94, "max_y": 1.00, "min_x": 0.55, "max_x": 0.98},
     }
 
-    for field_key, zone in KTP_SPATIAL_ZONES.items():
+    if parsed_blocks:
+        all_xs = [pt[0] for b in parsed_blocks for pt in b["bbox"]]
+        all_ys = [pt[1] for b in parsed_blocks for pt in b["bbox"]]
+        img_min_x, img_min_y = min(all_xs), min(all_ys)
+        img_max_x, img_max_y = max(all_xs), max(all_ys)
+        content_w = max(img_max_x - img_min_x, 1)
+        content_h = max(img_max_y - img_min_y, 1)
+    else:
+        img_min_x, img_min_y, content_w, content_h = 0, 0, 1000, 630
+
+    for field_key, zone_pct in KTP_ISOLATED_ZONES_PCT.items():
         if extracted.get(field_key, {}).get("value"):
             continue
-            
+
+        min_y = img_min_y + zone_pct["min_y"] * content_h
+        max_y = img_min_y + zone_pct["max_y"] * content_h
+        min_x = img_min_x + zone_pct["min_x"] * content_w
+        max_x = img_min_x + zone_pct["max_x"] * content_w
+
         candidates = []
         for b in parsed_blocks:
-            if zone["min_y"] <= b["cy"] <= zone["max_y"] and zone["min_x"] <= b["min_x"] <= zone["max_x"]:
+            if min_y <= b["cy"] <= max_y and min_x <= b["min_x"] <= max_x:
                 txt_clean = b["text"].upper()
-                for lbl in ALL_LABELS:
-                    txt_clean = re.sub(r'\b' + re.escape(lbl) + r'\b', '', txt_clean).strip(" :-")
-                if txt_clean and not is_label_text(txt_clean):
+                if is_label_text(txt_clean):
+                    continue
+                txt_clean = strip_known_labels(txt_clean, ALL_LABELS)
+                if txt_clean:
                     candidates.append((b, txt_clean))
-                    
+
         if candidates:
             candidates.sort(key=lambda item: item[0]["min_x"])
             val = " ".join([c[1] for c in candidates])
+            val = re.sub(r'\s+', ' ', val).strip()
             avg_conf = sum([c[0]["confidence"] for c in candidates]) / len(candidates)
             extracted[field_key] = {
-                "value": val.strip(),
+                "value": val,
                 "confidence": float(avg_conf),
                 "needs_review": bool(avg_conf < 0.70)
             }
 
-    # Final confidence gate status update across all fields
+    # Final Confidence & Format Validation Layer
     for fk, data in extracted.items():
         if isinstance(data, dict):
+            val = data.get("value", "")
             conf = data.get("confidence", 0.0)
-            data["needs_review"] = bool(conf < 0.70 or not data.get("value"))
+            
+            # Format Safety Nets
+            if fk == "nik" and not re.match(r'^\d{16}$', val):
+                data["needs_review"] = True
+            elif fk == "jenis_kelamin" and val not in ["LAKI-LAKI", "PEREMPUAN"]:
+                data["needs_review"] = True
+            elif fk == "tempat_tgl_lahir" and not re.search(r'\d{2}-\d{2}-\d{4}', val):
+                data["needs_review"] = True
+            elif conf < 0.70 or not val:
+                data["needs_review"] = True
 
     return extracted

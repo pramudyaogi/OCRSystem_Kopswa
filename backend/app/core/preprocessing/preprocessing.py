@@ -31,6 +31,8 @@ def deskew_image(image: np.ndarray) -> np.ndarray:
     """
     Meluruskan gambar (deskew) yang miring (rotasi kecil).
     Berguna jika dokumen difoto agak miring.
+    Batas keamanan: hanya melakukan rotasi jika kemiringan antara 0.5° - 15°.
+    Kemiringan di luar rentang ini dianggap salah deteksi dan diabaikan.
     """
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
     
@@ -52,11 +54,18 @@ def deskew_image(image: np.ndarray) -> np.ndarray:
     else:
         angle = -angle
         
-    # Abaikan rotasi jika kemiringan sangat kecil
+    # Abaikan jika sudut terlalu kecil (tidak perlu diluruskan)
     if abs(angle) < 0.5:
+        return image
+    
+    # Abaikan jika sudut terlalu besar (kemungkinan salah deteksi minAreaRect)
+    # Batas aman: maksimal 15 derajat untuk deskewing KTP
+    if abs(angle) > 15.0:
+        print(f"[DESKEW] Angle {angle:.1f}° melebihi batas aman (15°). Deskew diabaikan.")
         return image
         
     # Putar gambar
+    print(f"[DESKEW] Meluruskan kemiringan {angle:.1f}°")
     (h, w) = image.shape[:2]
     center = (w // 2, h // 2)
     M = cv2.getRotationMatrix2D(center, angle, 1.0)
@@ -110,8 +119,9 @@ def is_valid_ktp_rectangle(pts: np.ndarray, img_w: int, img_h: int) -> bool:
     """
     Validasi apakah 4 titik membentuk persegi panjang KTP yang masuk akal:
     1. Harus cembung (convex).
-    2. Aspect ratio mendekati rasio KTP (1.3 hingga 1.9).
-    3. Luas minimal 15% dari total gambar.
+    2. Aspect ratio mendekati rasio KTP (1.3 hingga 1.9) — diperketat dari 1.2-2.0.
+    3. Luas minimal 30% dari total gambar — dinaikkan dari 15% agar tidak
+       salah mendeteksi bingkai meja/background sebagai KTP.
     """
     if len(pts) != 4:
         return False
@@ -138,29 +148,74 @@ def is_valid_ktp_rectangle(pts: np.ndarray, img_w: int, img_h: int) -> bool:
     area = cv2.contourArea(pts)
     total_area = img_w * img_h
     
-    # KTP ideal aspect ratio ~ 1.58. Beri toleransi aman (1.2 - 2.0)
-    if area > (total_area * 0.15) and (1.2 <= aspect_ratio <= 2.0):
+    # KTP ideal aspect ratio ~ 1.58. Toleransi diperketat (1.3 - 1.9)
+    # Area minimum dinaikkan ke 30% agar background/meja tidak salah terdeteksi
+    if area > (total_area * 0.30) and (1.3 <= aspect_ratio <= 1.9):
         return True
         
     return False
 
+
+def validate_image_quality(image: np.ndarray, min_variance: float = 150.0) -> bool:
+    """
+    Memeriksa apakah gambar masih memiliki konten visual yang cukup
+    (tidak blank/hitam/rusak akibat warp yang salah).
+    Menggunakan variansi pixel grayscale sebagai proxy kualitas gambar.
+    """
+    if image is None or image.size == 0:
+        return False
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+    variance = float(np.var(gray))
+    print(f"[QUALITY CHECK] Pixel variance: {variance:.1f} (threshold: {min_variance})")
+    return variance > min_variance
+
+def check_image_quality_gate(image: np.ndarray, min_blur_var: float = 80.0) -> Tuple[bool, str]:
+    """
+    Quality Gate Check sebelum OCR:
+    1. Blur Detection (Laplacian variance)
+    2. Brightness Check (Average histogram brightness for dark/overexposed images)
+    Returns: (is_passed, error_message)
+    """
+    if image is None or image.size == 0:
+        return False, "File gambar kosong atau tidak terbaca."
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
+    
+    # 1. Blur Detection
+    blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    print(f"[QUALITY GATE] Blur variance score: {blur_score:.1f} (min: {min_blur_var})")
+    if blur_score < min_blur_var:
+        return False, "Foto terdeteksi buram/blur. Mohon foto ulang dengan fokus yang lebih tajam."
+
+    # 2. Brightness Check
+    mean_bright = float(np.mean(gray))
+    print(f"[QUALITY GATE] Average brightness: {mean_bright:.1f}")
+    if mean_bright < 40:
+        return False, "Pencahayaan kurang baik (terlalu gelap). Mohon foto ulang di tempat yang lebih terang."
+    if mean_bright > 235:
+        return False, "Foto terlalu silau/overexposed. Mohon kurangi pantulan cahaya pada kartu."
+
+    return True, ""
+
 def perspective_transform_ktp(image: np.ndarray) -> np.ndarray:
     """
-    Mendeteksi 4 sudut kartu KTP dan meluruskannya (Perspective Transformation)
-    menjadi persegi panjang datar 1000x630 pixel.
-    JIKA DETEKSI GAGAL ATAU CONFIDENCE RENDAH -> FALLBACK RETURN ASLI.
+    Mendeteksi 4 sudut kartu KTP (Quadrilateral terbesar) dan meluruskannya 
+    (Perspective Transformation) menjadi 1000x630px.
     """
     try:
         h_orig, w_orig = image.shape[:2]
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if len(image.shape) == 3 else image
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-        edged = cv2.Canny(blurred, 50, 150)
+        
+        # Adaptive Thresholding + Canny untuk mendeteksi tepi kartu pada berbagai warna background
+        thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)
+        edged = cv2.Canny(thresh, 50, 150)
         
         contours, _ = cv2.findContours(edged.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not contours:
             return image
             
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:5]
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:8]
         
         doc_contour = None
         for c in contours:
@@ -171,12 +226,11 @@ def perspective_transform_ktp(image: np.ndarray) -> np.ndarray:
                 break
                 
         if doc_contour is None:
-            return image # Fallback aman tanpa warp jika tidak memenuhi syarat
+            return image
             
         pts = doc_contour.reshape(4, 2)
         rect = order_points(pts)
         
-        # Dimensi standar KTP (1000 x 630 px)
         dst = np.array([
             [0, 0],
             [999, 0],
@@ -194,27 +248,29 @@ def perspective_transform_ktp(image: np.ndarray) -> np.ndarray:
 def reduce_glare_and_enhance(image: np.ndarray) -> np.ndarray:
     """
     Mengurangi efek bayangan/glare dengan:
-    1. Adaptive CLAHE lebih agresif untuk foto kamera HP
-    2. Unsharp Mask untuk mempertajam karakter teks
+    1. Adaptive CLAHE ringan — clipLimit diturunkan ke 1.5 agar tidak mendistorsi karakter teks
+    2. Unsharp Mask ringan (1.2x) untuk sedikit mempertajam tanpa menciptakan artefak
     3. Gamma correction untuk gambar terlalu gelap/terang
-    Agar teks KTP tetap jelas terbaca meski foto agak miring/buram.
+    Catatan: Agresivitas diturunkan karena CLAHE terlalu kuat (clipLimit=3.0) terbukti
+    mendistorsi karakter teks KTP sehingga OCR membaca karakter yang salah.
     """
     try:
         # Konversi ke LAB untuk memproses pencahayaan tanpa merusak warna
         lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
         l, a, b = cv2.split(lab)
 
-        # CLAHE lebih agresif (clipLimit=3.0) untuk foto kamera HP
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        # CLAHE ringan (clipLimit=1.5, turun dari 3.0) — cukup untuk normalisasi cahaya
+        # tanpa mendistorsi tepi karakter teks yang dibutuhkan OCR
+        clahe = cv2.createCLAHE(clipLimit=1.5, tileGridSize=(8, 8))
         cl = clahe.apply(l)
 
         limg = cv2.merge((cl, a, b))
         enhanced = cv2.cvtColor(limg, cv2.COLOR_LAB2BGR)
 
-        # Unsharp Mask: pertajam tepi karakter agar OCR baca lebih akurat
-        # Rumus: sharp = original + amount * (original - blur)
+        # Unsharp Mask ringan: pertajam tepi karakter sedikit saja
+        # Turun dari (1.5, -0.5) ke (1.2, -0.2) agar tidak over-sharpen
         blur = cv2.GaussianBlur(enhanced, (0, 0), sigmaX=2.0)
-        sharpened = cv2.addWeighted(enhanced, 1.5, blur, -0.5, 0)
+        sharpened = cv2.addWeighted(enhanced, 1.2, blur, -0.2, 0)
 
         # Gamma correction: normalisasi kecerahan foto terlalu gelap/terang
         mean_brightness = np.mean(cv2.cvtColor(sharpened, cv2.COLOR_BGR2GRAY))
@@ -295,13 +351,8 @@ def preprocess_pipeline(image_path: str, save_debug: bool = True) -> Optional[np
     if image is None:
         return None
         
-    # 2. Pastikan orientasi gambar mendatar (Landscape)
+    # 2. Resize gambar jika sangat besar agar tidak lambat di CPU
     h, w = image.shape[:2]
-    if h > w:
-        image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
-        h, w = w, h # Update dimensi setelah rotasi
-        
-    # Resize gambar jika sangat besar agar tidak lambat di CPU
     max_dim = 1600
     if max(h, w) > max_dim:
         scale = max_dim / max(h, w)
@@ -320,10 +371,26 @@ def preprocess_pipeline(image_path: str, save_debug: bool = True) -> Optional[np
         cv2.imwrite(os.path.join(debug_dir, f"{base_name}_1_yolo_crop.jpg"), roi_image)
     
     # 4. Perspective Transformation (Auto-Warp 4 sudut ke 1000x630px)
+    # Simpan salinan pre-warp sebagai fallback jika warp merusak gambar
+    pre_warp_backup = roi_image.copy()
     warped_image = perspective_transform_ktp(roi_image)
     
-    # 5. Deskewing tambahan untuk memperbaiki kemiringan kecil (0.5 - 25 derajat)
+    # Safety Guard: Cek kualitas gambar setelah warp.
+    # Jika warp menghasilkan gambar blank/rusak (variansi pixel terlalu rendah),
+    # gunakan kembali gambar sebelum warp.
+    if not validate_image_quality(warped_image):
+        print("[WARP GUARD] Gambar hasil warp terdeteksi blank/rusak. Menggunakan gambar pre-warp.")
+        warped_image = pre_warp_backup
+    
+    # 5. Deskewing tambahan untuk memperbaiki kemiringan kecil (0.5° - 15°)
+    pre_deskew_backup = warped_image.copy()
     warped_image = deskew_image(warped_image)
+    
+    # Safety Guard: Cek kualitas gambar setelah deskew.
+    # Jika deskew merusak gambar, gunakan kembali gambar sebelum deskew.
+    if not validate_image_quality(warped_image):
+        print("[DESKEW GUARD] Gambar hasil deskew terdeteksi rusak. Menggunakan gambar pre-deskew.")
+        warped_image = pre_deskew_backup
     
     if save_debug and warped_image is not None:
         cv2.imwrite(os.path.join(debug_dir, f"{base_name}_2_after_warp.jpg"), warped_image)

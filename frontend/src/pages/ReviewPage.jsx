@@ -5,11 +5,17 @@ const FIELD_LABELS = {
   nik: "NIK",
   nama: "NAMA",
   tempat_tgl_lahir: "TEMPAT / TANGGAL LAHIR",
+  alamat: "ALAMAT",
+  rt_rw: "RT / RW",
+  kel_desa: "KEL / DESA",
+  kecamatan: "KECAMATAN",
   alamat_lengkap: "ALAMAT LENGKAP",
   jenis_kelamin: "JENIS KELAMIN",
   agama: "AGAMA",
   status_perkawinan: "STATUS PERKAWINAN",
-  pekerjaan: "PEKERJAAN"
+  pekerjaan: "PEKERJAAN",
+  kewarganegaraan: "KEWARGANEGARAAN",
+  berlaku_hingga: "BERLAKU HINGGA"
 };
 
 export default function ReviewPage({ payload, onReset, onSaveSuccess }) {
@@ -133,37 +139,92 @@ export default function ReviewPage({ payload, onReset, onSaveSuccess }) {
         </div>
         
         <div className="fields-container">
-          {Object.entries(formData).map(([key, item]) => {
-            const isEmpty = !item.value || item.value.trim() === '';
-            const displayLabel = FIELD_LABELS[key] || key.replace(/_/g, ' ').toUpperCase();
-            const isFullWidth = key.includes('alamat');
-            
-            return (
-              <div key={key} className={`field-item ${isFullWidth ? 'field-item-full' : ''}`}>
-                <div className="field-label">
-                  <span className="field-name">{displayLabel}</span>
-                  {renderStatusBadge(item)}
-                </div>
-                {isFullWidth ? (
-                  <textarea 
-                    rows={2}
-                    value={item.value} 
-                    onChange={(e) => handleChange(key, e.target.value)}
-                    placeholder={`Masukkan ${displayLabel.toLowerCase()}`}
-                    className={`edit-textarea ${isEmpty ? 'input-warning' : 'input-valid'}`}
-                  />
-                ) : (
-                  <input 
-                    type="text" 
-                    value={item.value} 
-                    onChange={(e) => handleChange(key, e.target.value)}
-                    placeholder={`Masukkan ${displayLabel.toLowerCase()}`}
-                    className={isEmpty ? 'input-warning' : 'input-valid'}
-                  />
-                )}
+          {/* NIK (Kiri) */}
+          {formData.nik && (
+            <div className="field-item">
+              <div className="field-label">
+                <span className="field-name">{FIELD_LABELS.nik}</span>
+                {renderStatusBadge(formData.nik)}
               </div>
-            );
-          })}
+              <input 
+                type="text" 
+                value={formData.nik.value} 
+                onChange={(e) => handleChange('nik', e.target.value)}
+                placeholder="Masukkan nik"
+                className={!formData.nik.value ? 'input-warning' : 'input-valid'}
+              />
+            </div>
+          )}
+
+          {/* NAMA (Kanan - Textarea) */}
+          {formData.nama && (
+            <div className="field-item" style={{ gridRow: 'span 2' }}>
+              <div className="field-label">
+                <span className="field-name">{FIELD_LABELS.nama}</span>
+                {renderStatusBadge(formData.nama)}
+              </div>
+              <textarea 
+                rows={2}
+                value={formData.nama.value} 
+                onChange={(e) => handleChange('nama', e.target.value)}
+                placeholder="Masukkan nama"
+                className={`edit-textarea ${!formData.nama.value ? 'input-warning' : 'input-valid'}`}
+                style={{ minHeight: '42px', height: '110px', maxHeight: '125px' }}
+              />
+            </div>
+          )}
+
+          {/* TEMPAT / TANGGAL LAHIR (Kiri - Tepat Di Bawah NIK) */}
+          {formData.tempat_tgl_lahir && (
+            <div className="field-item">
+              <div className="field-label">
+                <span className="field-name">{FIELD_LABELS.tempat_tgl_lahir}</span>
+                {renderStatusBadge(formData.tempat_tgl_lahir)}
+              </div>
+              <input 
+                type="text" 
+                value={formData.tempat_tgl_lahir.value} 
+                onChange={(e) => handleChange('tempat_tgl_lahir', e.target.value)}
+                placeholder="Masukkan tempat / tanggal lahir"
+                className={!formData.tempat_tgl_lahir.value ? 'input-warning' : 'input-valid'}
+              />
+            </div>
+          )}
+
+          {/* SISANYA (ALAMAT LENGKAP, JENIS KELAMIN, AGAMA, DLL) */}
+          {Object.entries(formData)
+            .filter(([key]) => !['nik', 'nama', 'tempat_tgl_lahir', 'alamat', 'rt_rw', 'kel_desa', 'kecamatan', 'berlaku_hingga'].includes(key))
+            .map(([key, item]) => {
+              const isEmpty = !item.value || item.value.trim() === '';
+              const displayLabel = FIELD_LABELS[key] || key.replace(/_/g, ' ').toUpperCase();
+              const isFullWidth = key.includes('alamat');
+              
+              return (
+                <div key={key} className={`field-item ${isFullWidth ? 'field-item-full' : ''}`}>
+                  <div className="field-label">
+                    <span className="field-name">{displayLabel}</span>
+                    {renderStatusBadge(item)}
+                  </div>
+                  {isFullWidth ? (
+                    <textarea 
+                      rows={2}
+                      value={item.value} 
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      placeholder={`Masukkan ${displayLabel.toLowerCase()}`}
+                      className={`edit-textarea ${isEmpty ? 'input-warning' : 'input-valid'}`}
+                    />
+                  ) : (
+                    <input 
+                      type="text" 
+                      value={item.value} 
+                      onChange={(e) => handleChange(key, e.target.value)}
+                      placeholder={`Masukkan ${displayLabel.toLowerCase()}`}
+                      className={isEmpty ? 'input-warning' : 'input-valid'}
+                    />
+                  )}
+                </div>
+              );
+            })}
         </div>
       </div>
       
