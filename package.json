@@ -4,5 +4,8 @@
   "description": "System Document OCR Koperasi Swadharma",
   "scripts": {
     "start": "start.bat"
+  },
+  "devDependencies": {
+    "@ngrok/ngrok": "^1.7.0"
   }
 }
