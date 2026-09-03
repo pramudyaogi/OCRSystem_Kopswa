@@ -18,9 +18,10 @@ PORT = int(os.getenv("PORT", 8001))
 
 def main():
     print(f"Starting Ngrok Tunnel on Port {PORT}...")
-    if AUTH_TOKEN:
-        ngrok.set_auth_token(AUTH_TOKEN)
-    tunnel = ngrok.connect(PORT, domain="beatriz-inattentive-malcolm.ngrok-free.app")
+    try:
+        tunnel = ngrok.connect(PORT, domain="beatriz-inattentive-malcolm.ngrok-free.app")
+    except Exception as e:
+        tunnel = ngrok.connect(PORT)
     public_url = tunnel.public_url.replace("http://", "https://")
     
     print("\n" + "="*50)
