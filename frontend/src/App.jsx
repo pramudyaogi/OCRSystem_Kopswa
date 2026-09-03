@@ -1,61 +1,138 @@
 import React, { useState } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
+import AppLayout from './components/AppLayout';
+import DashboardPage from './pages/DashboardPage';
 import UploadPage from './pages/UploadPage';
 import ReviewPage from './pages/ReviewPage';
 import HistoryPage from './pages/HistoryPage';
 import SuccessPage from './pages/SuccessPage';
+import MemberFormPage from './pages/MemberFormPage';
+import LoanFormPage from './pages/LoanFormPage';
+import SettingsPage from './pages/SettingsPage';
 import './index.css';
 
-export default function App() {
-  const [view, setView] = useState('upload'); // 'upload' | 'review' | 'success' | 'history'
+// KTP Flow Component for /scan/ktp route
+function KtpScanFlow() {
+  const [ktpView, setKtpView] = useState('upload'); // 'upload' | 'review' | 'success'
   const [extractedData, setExtractedData] = useState(null);
   const [savedData, setSavedData] = useState(null);
+  const navigate = useNavigate();
 
   const handleExtractionComplete = (data) => {
     setExtractedData(data);
-    setView('review');
+    setKtpView('review');
   };
 
   const handleSaveSuccess = (saved) => {
     setSavedData(saved);
-    setView('success');
+    setKtpView('success');
   };
 
-  const handleReset = () => {
+  const handleResetKtp = () => {
     setExtractedData(null);
     setSavedData(null);
-    setView('upload');
+    setKtpView('upload');
   };
 
   return (
-    <div className="app-container">
-      {view === 'upload' && (
+    <div className="ktp-flow-wrapper">
+      {ktpView === 'upload' && (
         <UploadPage 
           onExtractionComplete={handleExtractionComplete} 
-          onViewHistory={() => setView('history')} 
+          onViewHistory={() => navigate('/history')} 
         />
       )}
 
-      {view === 'review' && extractedData && (
+      {ktpView === 'review' && extractedData && (
         <ReviewPage 
           payload={extractedData} 
-          onReset={handleReset}
+          onReset={handleResetKtp}
           onSaveSuccess={handleSaveSuccess} 
         />
       )}
 
-      {view === 'success' && (
+      {ktpView === 'success' && (
         <SuccessPage 
           savedData={savedData}
-          onScanAgain={handleReset}
-          onViewHistory={() => setView('history')}
-        />
-      )}
-
-      {view === 'history' && (
-        <HistoryPage 
-          onBack={() => setView('upload')} 
+          onScanAgain={handleResetKtp}
+          onViewHistory={() => navigate('/history')}
         />
       )}
     </div>
+  );
+}
+
+export default function App() {
+  const navigate = useNavigate();
+
+  return (
+    <Routes>
+      {/* 1. Landing Page Route */}
+      <Route path="/" element={<LandingPage />} />
+
+      {/* 2. Dashboard Route */}
+      <Route 
+        path="/dashboard" 
+        element={
+          <AppLayout activeTab="dashboard">
+            <DashboardPage />
+          </AppLayout>
+        } 
+      />
+
+      {/* 3. Scan E-KTP Route */}
+      <Route 
+        path="/scan/ktp" 
+        element={
+          <AppLayout activeTab="scan_ktp">
+            <KtpScanFlow />
+          </AppLayout>
+        } 
+      />
+
+      {/* 4. Scan Formulir Anggota Route */}
+      <Route 
+        path="/scan/member-form" 
+        element={
+          <AppLayout activeTab="scan_member">
+            <MemberFormPage />
+          </AppLayout>
+        } 
+      />
+
+      {/* 5. Scan Pengajuan Pinjaman Route */}
+      <Route 
+        path="/scan/loan-form" 
+        element={
+          <AppLayout activeTab="scan_loan">
+            <LoanFormPage />
+          </AppLayout>
+        } 
+      />
+
+      {/* 6. Riwayat Dokumen Route */}
+      <Route 
+        path="/history" 
+        element={
+          <AppLayout activeTab="history">
+            <HistoryPage onBack={() => navigate('/dashboard')} />
+          </AppLayout>
+        } 
+      />
+
+      {/* 7. Pengaturan Route */}
+      <Route 
+        path="/settings" 
+        element={
+          <AppLayout activeTab="settings">
+            <SettingsPage />
+          </AppLayout>
+        } 
+      />
+
+      {/* Fallback Route */}
+      <Route path="*" element={<LandingPage />} />
+    </Routes>
   );
 }

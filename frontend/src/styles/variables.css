@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  /* Tema Koperasi Swadharma (Teal & Orange) */
+  --bg-color: #f8fafc;
+  --panel-bg: #ffffff;
+  --border-color: #e2e8f0;
+  
+  /* Swadharma Teal (Utama / Tombol Aksi) */
+  --primary-dark: #054f63;
+  --primary-main: #086b85; 
+  --primary-light: #0d8cae;
+  
+  /* Swadharma Orange (Aksen) */
+  --accent-dark: #d93808;
+  --accent-main: #f24e1e;
+  --accent-light: #ff7347;
+  
+  /* Teks Gelap Kontras */
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  
+  /* Area Peringatan */
+  --error-bg: #fff7ed;
+  --error-border: #f97316;
+  --error-text: #c2410c;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  letter-spacing: normal;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  overflow-x: hidden;
+}
+
+body {
+  background-color: #f8fafc;
+  color: var(--text-main);
+  min-height: 100vh;
+  margin: 0;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}

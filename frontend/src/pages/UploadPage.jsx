@@ -229,13 +229,7 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
   };
 
   return (
-    <div className="glass-panel">
-      {/* HEADER LOGO PERUSAHAAN & BRAND ACCENT BAR */}
-      <div className="brand-header">
-        <img src="/logo.png" alt="Koperasi Swadharma" className="brand-logo" />
-        <div className="brand-accent-line"></div>
-      </div>
-
+    <div className="dummy-page-container">
       {/* STEPPER PROGRESS INDICATOR */}
       <div className="stepper-bar">
         <div className="step-item active">
@@ -254,29 +248,16 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
         </div>
       </div>
 
+      {/* Header Info Title */}
+      <div className="page-section-header">
+        <h2>🆔 Scan E-KTP Indonesia</h2>
+        <p className="section-subtitle">Tampilan antarmuka pemindaian dan ekstraksi data E-KTP Indonesia secara otomatis.</p>
+      </div>
+
       {/* INSTRUCTION BANNER RINGKAS */}
       <div className="instruction-banner">
         <span className="info-icon">💡</span>
-        <span>Pilih tipe dokumen, lalu pilih metode pindaian: **Foto Kamera** atau **Upload File**.</span>
-      </div>
-
-      {/* INPUT GROUP TIPE DOKUMEN & NAVIGASI HISTORY */}
-      <div className="input-group main-type-selector">
-        <div className="label-with-action">
-          <label>Tipe Dokumen</label>
-          <button 
-            type="button"
-            className="btn-history-compact"
-            onClick={onViewHistory}
-            title="Lihat Data Tersimpan"
-          >
-            📁 Data Tersimpan
-          </button>
-        </div>
-        <select value={template} onChange={(e) => setTemplate(e.target.value)}>
-          <option value="ktp">🇮🇩 KTP Indonesia (E-KTP)</option>
-          <option value="form_pendaftaran">📝 Formulir Pendaftaran</option>
-        </select>
+        <span>Pilihlah metode pemindaian KTP: <strong>Foto Kamera</strong> atau <strong>Upload File Dokumen</strong>.</span>
       </div>
 
       {/* METODE UPLOAD: 2 KARTU OPSI SEJAJAR & SAMA TINGGI */}
@@ -347,31 +328,33 @@ export default function UploadPage({ onExtractionComplete, onViewHistory }) {
       ) : (
         /* MODAL KAMERA INTERAKTIF DENGAN KTP FRAME ASPECT RATIO (1.586 : 1) & DARK OVERLAY */
         <div className="camera-overlay-container">
-          <div className="camera-header">
-            <span>📷 Posisikan KTP Pas di Dalam Bingkai Oranye</span>
-            <button className="btn-close-camera" onClick={stopCamera}>✕</button>
-          </div>
-          
-          <div className="video-viewport">
-            <video ref={videoRef} autoPlay playsInline muted />
-            <div className="camera-dark-overlay">
-              <div className="ktp-frame-guide">
-                <div className="frame-corner top-left"></div>
-                <div className="frame-corner top-right"></div>
-                <div className="frame-corner bottom-left"></div>
-                <div className="frame-corner bottom-right"></div>
-              </div>
-              <p className="camera-instruction-subtext">Pastikan seluruh KTP terlihat jelas di dalam kotak oranye</p>
+          <div className="camera-modal-box">
+            <div className="camera-header">
+              <span>📷 Posisikan KTP Pas di Dalam Bingkai Oranye</span>
+              <button className="btn-close-camera" onClick={stopCamera}>✕</button>
             </div>
-          </div>
+            
+            <div className="video-viewport">
+              <video ref={videoRef} autoPlay playsInline muted />
+              <div className="camera-dark-overlay">
+                <div className="ktp-frame-guide">
+                  <div className="frame-corner top-left"></div>
+                  <div className="frame-corner top-right"></div>
+                  <div className="frame-corner bottom-left"></div>
+                  <div className="frame-corner bottom-right"></div>
+                </div>
+                <p className="camera-instruction-subtext">Pastikan seluruh KTP terlihat jelas di dalam kotak oranye</p>
+              </div>
+            </div>
 
-          <div className="camera-action-row">
-            <button className="btn btn-secondary btn-cancel-cam" onClick={stopCamera}>
-              Batal
-            </button>
-            <button className="btn btn-primary btn-capture" onClick={capturePhoto}>
-              📷 Tangkap Foto KTP
-            </button>
+            <div className="camera-action-row">
+              <button className="btn btn-secondary btn-cancel-cam" onClick={stopCamera}>
+                Batal
+              </button>
+              <button className="btn btn-primary btn-capture" onClick={capturePhoto}>
+                📷 Tangkap Foto KTP
+              </button>
+            </div>
           </div>
         </div>
       )}

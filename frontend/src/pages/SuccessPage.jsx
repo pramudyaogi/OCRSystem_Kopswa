@@ -7,30 +7,6 @@ export default function SuccessPage({ savedData, onScanAgain, onViewHistory }) {
 
   return (
     <div className="glass-panel">
-      {/* HEADER LOGO PERUSAHAAN & BRAND ACCENT BAR */}
-      <div className="brand-header">
-        <img src="/logo.png" alt="Koperasi Swadharma" className="brand-logo" />
-        <div className="brand-accent-line"></div>
-      </div>
-
-      {/* STEPPER PROGRESS INDICATOR - STEP 3 COMPLETED */}
-      <div className="stepper-bar">
-        <div className="step-item completed">
-          <span className="step-number">✓</span>
-          <span className="step-label">Upload</span>
-        </div>
-        <div className="step-line active"></div>
-        <div className="step-item completed">
-          <span className="step-number">✓</span>
-          <span className="step-label">Verifikasi</span>
-        </div>
-        <div className="step-line active"></div>
-        <div className="step-item active">
-          <span className="step-number">3</span>
-          <span className="step-label">Selesai</span>
-        </div>
-      </div>
-
       {/* SUCCESS HERO BADGE & TEXT */}
       <div className="success-hero-container">
         <div className="success-icon-badge">
@@ -58,21 +34,20 @@ export default function SuccessPage({ savedData, onScanAgain, onViewHistory }) {
         </div>
 
         {/* DUA TOMBOL PILIHAN AKSI UTAMA */}
-        <div className="success-actions-row">
+        <div className="success-actions-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.25rem' }}>
           <button 
             type="button" 
             className="btn btn-primary btn-process-main"
             onClick={onScanAgain}
           >
-            ⚡ Pindai Dokumen Lagi
+            📸 Scan KTP Lagi
           </button>
           <button 
             type="button" 
             className="btn btn-secondary btn-option-act"
             onClick={onViewHistory}
-            style={{ marginTop: '0.75rem' }}
           >
-            📁 Lihat Data Tersimpan
+            🗂️ Lihat Riwayat Dokumen
           </button>
         </div>
       </div>

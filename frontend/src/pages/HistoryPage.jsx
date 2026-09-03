@@ -3,13 +3,20 @@ import { getApiUrl, resolveUploadUrl, apiFetch } from '../services/api';
 
 const FIELD_LABELS = {
   nik: "NIK",
-  nama: "NAMA",
-  tempat_tgl_lahir: "TEMPAT / TANGGAL LAHIR",
-  alamat_lengkap: "ALAMAT LENGKAP",
+  nama: "NAMA LENGKAP",
+  tempat_tgl_lahir: "TEMPAT / TGL LAHIR",
   jenis_kelamin: "JENIS KELAMIN",
+  golongan_darah: "GOLONGAN DARAH",
+  alamat: "ALAMAT",
+  rt_rw: "RT / RW",
+  kel_desa: "KEL / DESA",
+  kecamatan: "KECAMATAN",
   agama: "AGAMA",
   status_perkawinan: "STATUS PERKAWINAN",
-  pekerjaan: "PEKERJAAN"
+  pekerjaan: "PEKERJAAN",
+  kewarganegaraan: "KEWARGANEGARAAN",
+  berlaku_hingga: "BERLAKU HINGGA",
+  alamat_lengkap: "ALAMAT LENGKAP"
 };
 
 const resolveImgUrl = (filename) => {
@@ -247,8 +254,9 @@ function DocCardItem({ doc, isChecked, isSelectMode, handleOpenDetail, handleTog
 export default function HistoryPage({ onBack }) {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState('all');
   
-  // Pagination State (6 items per page for ultra-fast mobile load)
+  // Pagination State (12 items per page for full desktop view)
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, pages: 1, hasNext: false, hasPrev: false });
 
@@ -281,14 +289,19 @@ export default function HistoryPage({ onBack }) {
   };
 
   useEffect(() => {
-    fetchDocuments(1);
-  }, []);
+    fetchDocuments(1, selectedFilter);
+  }, [selectedFilter]);
 
-  const fetchDocuments = async (pageNum = 1) => {
+  const fetchDocuments = async (pageNum = 1, filter = selectedFilter) => {
     setLoading(true);
     try {
-      // Ambil seluruh data dokumen dari FastAPI Backend (/api/documents/)
-      const res = await apiFetch(`/api/documents/?page=${pageNum}&limit=6`);
+      // Pass doc_type / template_type filter to backend API if selected
+      let filterQuery = '';
+      if (filter === 'ktp') filterQuery = '&doc_type=ktp';
+      else if (filter === 'form_pendaftaran') filterQuery = '&doc_type=member_form';
+      else if (filter === 'loan') filterQuery = '&doc_type=loan_form';
+
+      const res = await apiFetch(`/api/documents/?page=${pageNum}&limit=12${filterQuery}`);
       if (res.ok) {
         const data = await res.json();
         let itemsList = [];
@@ -300,10 +313,11 @@ export default function HistoryPage({ onBack }) {
         if (Array.isArray(data)) {
           itemsList = data;
           totalCount = data.length;
+          pagesCount = Math.ceil(totalCount / 12) || 1;
         } else if (data && Array.isArray(data.items)) {
           itemsList = data.items;
           totalCount = data.total || itemsList.length;
-          pagesCount = data.pages || 1;
+          pagesCount = data.pages || Math.ceil(totalCount / 12) || 1;
           hasNext = !!data.has_next;
           hasPrev = !!data.has_prev;
         }
@@ -396,6 +410,8 @@ export default function HistoryPage({ onBack }) {
 
   const handleBulkSend = () => {
     if (selectedIds.length === 0) return alert("Pilih minimal 1 data untuk dikirim.");
+    const confirmSend = window.confirm(`Apakah Anda yakin ingin mengirim email untuk ${selectedIds.length} dokumen terpilih?`);
+    if (!confirmSend) return;
     const selectedDocsList = (documents || []).filter(d => selectedIds.includes(d.id));
     handleOpenSendEmailModal(selectedDocsList);
   };
@@ -503,29 +519,49 @@ export default function HistoryPage({ onBack }) {
         </div>
       )}
 
-      {/* HEADER LOGO PERUSAHAAN */}
-      <div className="brand-header">
-        <img src="/logo.png" alt="Koperasi Swadharma" className="brand-logo" />
-      </div>
+      {/* HISTORY PAGE HEADER & ACTIONS */}
+      <div className="history-page-header">
+        <div>
+          <h2>🗂️ Riwayat Dokumen Tersimpan</h2>
+          <p className="section-subtitle">Daftar arsip dokumen KTP, Keanggotaan, dan Pinjaman yang telah diverifikasi.</p>
+        </div>
 
-      {/* MOBILE NAVBAR HEADER (CLEAN ALIGNED ROW) */}
-      <div className="mobile-nav-header">
-        <button className="btn-icon-back" onClick={onBack} title="Kembali">
-          ← Kembali
-        </button>
-
-        <h2 className="mobile-header-title">Data Tersimpan</h2>
-
-        {!isSelectMode && documents.length > 0 ? (
+        {!isSelectMode && documents.length > 0 && (
           <button
             className="btn-select-toggle"
             onClick={() => setIsSelectMode(true)}
           >
-            Pilih
+            ☑️ Pilih Mode Bulk
           </button>
-        ) : (
-          <div className="nav-placeholder"></div>
         )}
+      </div>
+
+      {/* FILTER CATEGORY TABS (FRONTEND DUMMY/INTERACTIVE FILTER) */}
+      <div className="history-filter-tabs">
+        <button 
+          className={`filter-tab-btn ${selectedFilter === 'all' ? 'active' : ''}`}
+          onClick={() => setSelectedFilter('all')}
+        >
+          Semua Dokumen
+        </button>
+        <button 
+          className={`filter-tab-btn ${selectedFilter === 'ktp' ? 'active' : ''}`}
+          onClick={() => setSelectedFilter('ktp')}
+        >
+          🇮🇩 KTP
+        </button>
+        <button 
+          className={`filter-tab-btn ${selectedFilter === 'form_pendaftaran' ? 'active' : ''}`}
+          onClick={() => setSelectedFilter('form_pendaftaran')}
+        >
+          📋 Form Anggota
+        </button>
+        <button 
+          className={`filter-tab-btn ${selectedFilter === 'loan' ? 'active' : ''}`}
+          onClick={() => setSelectedFilter('loan')}
+        >
+          💰 Form Pinjaman
+        </button>
       </div>
 
       {/* POP-UP BAR SELECT MODE */}
@@ -569,52 +605,68 @@ export default function HistoryPage({ onBack }) {
         <div className="loading-state">
           <span className="spinner">⚙️</span> Memuat Data...
         </div>
-      ) : documents.length === 0 ? (
-        <div className="empty-state">
-          <span className="empty-icon">📂</span>
-          <p>Belum ada data KTP yang tersimpan di database.</p>
-        </div>
-      ) : (
-        <>
-          {/* PAGINATION NAVIGATION BAR (DI ATAS LIST DOKUMEN) */}
-          {pagination.pages > 1 && (
-            <div className="pagination-bar pagination-top">
-              <button
-                className="btn-pagination"
-                onClick={() => fetchDocuments(page - 1)}
-                disabled={!pagination.hasPrev || loading}
-              >
-                ← Sebelumnya
-              </button>
-              <span className="pagination-info">
-                Halaman {page} dari {pagination.pages}
-              </span>
-              <button
-                className="btn-pagination"
-                onClick={() => fetchDocuments(page + 1)}
-                disabled={!pagination.hasNext || loading}
-              >
-                Selanjutnya →
-              </button>
-            </div>
-          )}
+      ) : (() => {
+        const filteredDocs = (documents || []).filter(doc => {
+          if (selectedFilter === 'all') return true;
+          if (selectedFilter === 'ktp') return doc.doc_type === 'ktp' || doc.template_type === 'ktp' || (!doc.doc_type && !doc.template_type);
+          if (selectedFilter === 'form_pendaftaran') return doc.doc_type === 'member_form' || doc.template_type === 'form_pendaftaran';
+          if (selectedFilter === 'loan') return doc.doc_type === 'loan_form' || doc.template_type === 'loan';
+          return true;
+        });
 
-          <div className="document-list">
-            {documents.map((doc) => (
-              <DocCardItem
-                key={doc.id}
-                doc={doc}
-                isChecked={selectedIds.includes(doc.id)}
-                isSelectMode={isSelectMode}
-                handleOpenDetail={handleOpenDetail}
-                handleToggleSelect={handleToggleSelect}
-                formatDate={formatDate}
-                handleOpenSendEmailModal={handleOpenSendEmailModal}
-              />
-            ))}
-          </div>
-        </>
-      )}
+        if (filteredDocs.length === 0) {
+          return (
+            <div className="empty-state">
+              <span className="empty-icon">📂</span>
+              <p>Belum ada data dokumen yang tersimpan untuk kategori ini.</p>
+            </div>
+          );
+        }
+
+        const realPagesCount = Math.ceil(filteredDocs.length / 12) || 1;
+
+        return (
+          <>
+            {/* PAGINATION NAVIGATION BAR (DI ATAS LIST DOKUMEN) */}
+            {realPagesCount > 1 && (
+              <div className="pagination-bar pagination-top">
+                <button
+                  className="btn-pagination"
+                  onClick={() => fetchDocuments(page - 1)}
+                  disabled={!pagination.hasPrev || loading}
+                >
+                  ← Sebelumnya
+                </button>
+                <span className="pagination-info">
+                  Halaman {page} dari {realPagesCount}
+                </span>
+                <button
+                  className="btn-pagination"
+                  onClick={() => fetchDocuments(page + 1)}
+                  disabled={!pagination.hasNext || loading}
+                >
+                  Selanjutnya →
+                </button>
+              </div>
+            )}
+
+            <div className="document-list">
+              {filteredDocs.map((doc) => (
+                <DocCardItem
+                  key={doc.id}
+                  doc={doc}
+                  isChecked={selectedIds.includes(doc.id)}
+                  isSelectMode={isSelectMode}
+                  handleOpenDetail={handleOpenDetail}
+                  handleToggleSelect={handleToggleSelect}
+                  formatDate={formatDate}
+                  handleOpenSendEmailModal={handleOpenSendEmailModal}
+                />
+              ))}
+            </div>
+          </>
+        );
+      })()}
 
       {/* MODAL SEND EMAIL DIALOG */}
       {emailModal.isOpen && (
